@@ -9,9 +9,11 @@ interface TravelerRowProps {
   key?: string;
   traveler: Traveler;
   days: Date[];
+  onDayHover: (index: number | null) => void;
+  hoveredDay: number | null;
 }
 
-export function TravelerRow({ traveler, days }: TravelerRowProps) {
+export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: TravelerRowProps) {
   const { itinerary, zoomLevel, setSelection, selection } = useItinerary();
   const itineraryStart = startOfDay(parseISO(itinerary.startDate));
 
@@ -46,10 +48,12 @@ export function TravelerRow({ traveler, days }: TravelerRowProps) {
       <div className="flex relative" style={{ width: days.length * zoomLevel }}>
         {/* Background Grid Lines */}
         {days.map((day, i) => (
-          <div 
-            key={i} 
-            className="absolute top-0 bottom-0 border-r border-slate-100/50 pointer-events-none"
+          <div
+            key={i}
+            className="absolute top-0 bottom-0 border-r border-slate-300"
             style={{ left: i * zoomLevel, width: zoomLevel }}
+            onMouseEnter={() => onDayHover(i)}
+            onMouseLeave={() => onDayHover(null)}
           />
         ))}
 

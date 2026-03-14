@@ -3,12 +3,13 @@ import { getTimelineDays, formatDate } from '../../utils/dateUtils';
 import { isWeekend, isToday } from 'date-fns';
 import { TravelerRow } from './TravelerRow';
 import { cn } from '../../utils/cn';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 
 export function TimelineGrid() {
   const { itinerary, zoomLevel } = useItinerary();
   const days = getTimelineDays(itinerary.startDate, itinerary.endDate);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [hoveredDay, setHoveredDay] = useState<number | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -35,11 +36,14 @@ export function TimelineGrid() {
                 <div
                   key={i}
                   className={cn(
-                    "shrink-0 border-r border-slate-100 flex flex-col items-center justify-center py-2 transition-all",
+                    "shrink-0 border-r border-slate-300 flex flex-col items-center justify-center py-2 transition-colors cursor-pointer",
                     weekend && "bg-slate-50",
-                    today && "bg-blue-50/50"
+                    today && "bg-blue-50/50",
+                    hoveredDay === i && "bg-slate-100"
                   )}
                   style={{ width: zoomLevel }}
+                  onMouseEnter={() => setHoveredDay(i)}
+                  onMouseLeave={() => setHoveredDay(null)}
                 >
                   <span className={cn("text-[10px] font-medium uppercase tracking-wider", today ? "text-blue-600" : "text-slate-500")}>
                     {formatDate(day, 'EEE')}
@@ -54,9 +58,16 @@ export function TimelineGrid() {
         </div>
 
         {/* Traveler Rows */}
-        <div className="flex flex-col pb-10">
+        <div className="flex flex-col pb-10 relative">
+          {/* Column hover overlay */}
+          {hoveredDay !== null && (
+            <div
+              className="absolute top-0 bottom-0 bg-slate-900/[0.04] pointer-events-none z-10 transition-opacity"
+              style={{ left: 256 + hoveredDay * zoomLevel, width: zoomLevel }}
+            />
+          )}
           {itinerary.travelers.map(traveler => (
-            <TravelerRow key={traveler.id} traveler={traveler} days={days} />
+            <TravelerRow key={traveler.id} traveler={traveler} days={days} onDayHover={setHoveredDay} hoveredDay={hoveredDay} />
           ))}
         </div>
       </div>
