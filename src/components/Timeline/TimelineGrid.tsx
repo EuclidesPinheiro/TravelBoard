@@ -1,0 +1,65 @@
+import { useItinerary } from '../../store/ItineraryContext';
+import { getTimelineDays, formatDate } from '../../utils/dateUtils';
+import { isWeekend, isToday } from 'date-fns';
+import { TravelerRow } from './TravelerRow';
+import { cn } from '../../utils/cn';
+import { useRef, useEffect } from 'react';
+
+export function TimelineGrid() {
+  const { itinerary, zoomLevel } = useItinerary();
+  const days = getTimelineDays(itinerary.startDate, itinerary.endDate);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      const todayIndex = days.findIndex(d => isToday(d));
+      if (todayIndex > -1) {
+        scrollRef.current.scrollLeft = Math.max(0, (todayIndex * zoomLevel) - 200);
+      }
+    }
+  }, [days, zoomLevel]);
+
+  return (
+    <div className="flex-1 overflow-auto bg-white relative" id="timeline-grid" ref={scrollRef}>
+      <div className="inline-block min-w-full">
+        {/* Header Row (Dates) */}
+        <div className="sticky top-0 z-30 flex bg-white border-b border-slate-200 shadow-sm">
+          <div className="w-64 shrink-0 border-r border-slate-200 bg-slate-50/90 backdrop-blur-sm sticky left-0 z-40 flex items-center px-4">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Travelers</span>
+          </div>
+          <div className="flex">
+            {days.map((day, i) => {
+              const weekend = isWeekend(day);
+              const today = isToday(day);
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    "shrink-0 border-r border-slate-100 flex flex-col items-center justify-center py-2 transition-all",
+                    weekend && "bg-slate-50",
+                    today && "bg-blue-50/50"
+                  )}
+                  style={{ width: zoomLevel }}
+                >
+                  <span className={cn("text-[10px] font-medium uppercase tracking-wider", today ? "text-blue-600" : "text-slate-500")}>
+                    {formatDate(day, 'EEE')}
+                  </span>
+                  <span className={cn("text-sm font-semibold", today ? "text-blue-700" : (weekend ? "text-slate-700" : "text-slate-900"))}>
+                    {formatDate(day, 'dd/MM')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Traveler Rows */}
+        <div className="flex flex-col pb-10">
+          {itinerary.travelers.map(traveler => (
+            <TravelerRow key={traveler.id} traveler={traveler} days={days} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

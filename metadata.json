@@ -1,0 +1,5 @@
+{
+  "name": "TravelBoard",
+  "description": "Visual interactive tool for planning group travel itineraries.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,298 @@
+Prompt que eu apresentei pra ia: 
+Eu e meus amigos estamos planejando uma viagem por vários países da Europa em Junho de 2026. Alguns vão chegar antes, outros vão chegar depois, mas a ideia é que em algum momento nós possamos se encontrar em uma cidade específica e seguir viagem. Para organizar nossa viagem, criamos uma planilha no google sheets mostrando as cidades em cada um vai passar, o dia em que vai chegar, o dia em vai ficar, quais transportes vamos pegar entre as cidades, etc. Porém, dado as limitações inereantes a ferramenta, nossa representação do gráfico/tabela criado não está tão bom. Assim, idealizei criar uma solução WEB em Javascript que simule a planilha do google mas permita uma visualização melhor e com mais recursos. 
+Dessa forma, seu trabalhar é analisar e entender perfeitamente as imagens anexadas e a instrução que eu vou enviar e criar um prompt completo, técnico e instrutivo  que oriente outra IA a criar meu site em javascript com todos os recursos que eu idealize e seguindo a forma visual e as features que eu pensei. 
+Nas imagens em anexo, existe um print da planilha do google mostrando a ideia geral como funciona a planilha. Conceitos como :Viajantes por linha e dias  da semana e do mês por coluna, com as cidades em atravesando as colunas mostrando o tempo em cada cidade. Na outra imagem, é o mesmo conceito, mas consegue representar isso de forma ainda mais fácil e visual, mostrando pequenas retângulos que conectam as cidades representando o tipo de transporte com base na cor (trem, aviao, carro), a distância da viagem com base no comprimento do pequeno retangulo e até mesmo o horário em que se sai e chega ao destino com base aonde eme termina na coluna do dia. 
+A aplicação deve permiti:
+>Iniciar um novo roteiro ( em que se abre as colunas de dia da semana com seus respectivos dias do mês). 
+> Adicionar  viajante ( cria-se uma linha)
+>Incluir uma cidade e o tempo de permanência nela
+>conectar cidades com meios de transportes
+>A clicar no viajante deve aparecer as principais informações dele como: Nome, quais cidades ele está presente na viagem, qual o tempo vai ficar em qual cidade, quais meios de transporte ele vai usar, dentro outras informações. 
+> Ao clicar em uma cidade, vai mostrar o nome dela, quais viajantes estao visitando ela, qual o tempo total cada viajante esta ficando nela, e outras informações que voce julgar importante.
+> Ao clicar em um meio de transporte, mostra-se qual o meio de transporte, que dia/horario sai, que dia horario chega, o tempo de decorrido e outras informações que você julgar importante.
+Enfim, essas são as features que eu pensei, seja livre parar implementar novas features baseadas na proposta do meu aplicativo web. 
+Forneça um prompt técnico e instrutivo com tudo o que eu lhe falei. Aplicação Web em Javascript, visual moderno e extremamente intuitivo
+
+
+
+
+Prompt que a IA montou pra mim: 
+
+PROMPT TÉCNICO — Travel Itinerary Planner (Web App em JavaScript)
+
+Visão Geral do Projeto
+Crie uma aplicação web single-page em JavaScript puro (sem frameworks obrigatórios, mas pode usar React ou Vue se preferir) chamada TravelBoard — uma ferramenta visual interativa para planejamento de roteiros de viagem em grupo, onde múltiplos viajantes percorrem diferentes cidades em datas sobrepostas ou sequenciais.
+A aplicação deve combinar dois paradigmas visuais:
+
+Tabela Gantt-style (como um Google Sheets customizado): linhas = viajantes, colunas = dias do calendário, células representam estadia em cidades.
+Timeline visual compacta: cada viajante tem uma linha horizontal onde as cidades aparecem como blocos coloridos com nome, e os meios de transporte entre elas são representados por pequenos retângulos coloridos entre os blocos de cidade — seu comprimento proporcional à duração da viagem e sua cor indicando o tipo de transporte.
+
+
+Layout e Interface Geral
+Estrutura da tela:
+
+Cabeçalho fixo no topo com: nome do roteiro, botões de ação (Novo Roteiro, Adicionar Viajante, Salvar, Exportar)
+Barra de datas no topo da grade: cada coluna representa um dia. Mostrar dia da semana (Seg, Ter…) e data (DD/MM). Fins de semana com background levemente diferenciado. O dia atual deve ser destacado com cor de destaque (ex: azul).
+Cada linha abaixo representa um viajante
+Scroll horizontal para navegar pelas datas; scroll vertical para navegar pelos viajantes
+Painel lateral direito (drawer/sidebar) que abre ao clicar em qualquer elemento (viajante, cidade ou transporte), exibindo detalhes do item clicado
+
+Visual moderno:
+
+Fonte sans-serif limpa (ex: Inter, Outfit ou similar via Google Fonts)
+Paleta neutra com acentos coloridos para os tipos de transporte
+Cards com bordas arredondadas, sombras sutis
+Transições suaves (CSS transitions) ao interagir
+Responsivo (funciona em telas grandes e tablets)
+
+
+Estrutura de Dados (modelo interno)
+javascript// Roteiro principal
+{
+  id: string,
+  name: string,          // Ex: "Europa Junho 2026"
+  startDate: "2026-05-20",
+  endDate: "2026-07-01",
+  travelers: [Traveler],
+  cities: [City],        // Catálogo global de cidades usadas
+}
+
+// Viajante
+{
+  id: string,
+  name: string,
+  color: string,         // Cor identificadora do viajante (para avatar/badge)
+  segments: [Segment]    // Lista ordenada de segmentos (cidades + transportes)
+}
+
+// Segmento de cidade (estadia)
+{
+  type: "city",
+  id: string,
+  cityName: string,
+  country: string,
+  startDate: "2026-06-01",
+  endDate: "2026-06-05",
+  notes: string,
+  accommodation: string  // opcional: nome do hotel/airbnb
+}
+
+// Segmento de transporte (conexão entre duas cidades)
+{
+  type: "transport",
+  id: string,
+  mode: "train" | "flight" | "bus" | "car" | "ferry",
+  from: string,          // cityName origem
+  to: string,            // cityName destino
+  departureDate: "2026-06-05",
+  departureTime: "14:30",
+  arrivalDate: "2026-06-05",
+  arrivalTime: "18:45",
+  notes: string,         // Ex: "Trem noturno com cama"
+  overnight: boolean     // true se a viagem cruza a meia-noite
+}
+```
+
+---
+
+### Renderização da Grade (componente principal)
+
+**Colunas de datas:**
+- Cada coluna representa exatamente 1 dia
+- Largura de coluna configurável (padrão: 80px), com possibilidade de zoom (botões + e - ou scroll com Ctrl)
+- A coluna deve mostrar: nome do dia da semana abreviado (linha superior) + DD/MM (linha inferior)
+- Colunas de sábado/domingo com background rgba diferenciado (ex: 5% de opacidade cinza)
+
+**Linha de viajante:**
+- Altura fixa de 72px por viajante
+- Célula fixa na esquerda (sticky) com: avatar circular colorido com iniciais + nome do viajante — clicável
+- Os segmentos são renderizados como elementos absolutos posicionados dentro da linha
+
+**Renderização de cidades (blocos):**
+- Retângulos com cantos arredondados (border-radius: 6px)
+- Background: amarelo claro / cor neutra pastel (configurável por viajante ou cidade)
+- Texto centralizado com o nome da cidade
+- Largura proporcional ao número de dias de estadia (width = dias × largura_coluna)
+- Deve se encaixar precisamente entre as colunas de início e fim
+- Hover: leve elevação (box-shadow) + cursor pointer
+
+**Renderização de transportes (conectores):**
+- Pequeno retângulo horizontal entre dois blocos de cidade
+- Cores por tipo de transporte:
+  - ✈️ Voo: `#E74C3C` (vermelho)
+  - 🚂 Trem diurno: `#F39C12` (amarelo/âmbar)
+  - 🛌 Trem noturno (com cama): `#3498DB` (azul)
+  - 🚌 Ônibus: `#27AE60` (verde)
+  - 🚗 Carro: `#9B59B6` (roxo)
+  - ⛴️ Balsa/Ferry: `#1ABC9C` (teal)
+- Largura proporcional à duração da viagem (ex: viagem de 7h tem retângulo mais largo que viagem de 1h) — escala sugerida: 1h = 10px, máximo 60px, mínimo 20px
+- Posicionamento vertical: o retângulo deve estar **posicionado horizontalmente dentro da coluna do dia em que ocorre**, com deslocamento horizontal dentro da coluna baseado no horário (ex: saída às 06h = começa no início da coluna; saída às 18h = começa na metade da coluna)
+- Tooltip nativo (title) ou custom tooltip com: origem → destino, horário de saída e chegada, duração
+- Clicável para abrir painel de detalhes
+
+**Legenda de transportes:**
+- Fixa no rodapé ou em painel lateral, mostrando cor + ícone + nome para cada tipo de transporte
+
+---
+
+### Interações e Painel de Detalhes
+
+**Ao clicar no nome/avatar do viajante (célula sticky esquerda):**
+Abre sidebar com:
+- Nome completo
+- Badge de cor do viajante
+- Lista de cidades visitadas em ordem: "Cidade — DD/MM até DD/MM (X dias)"
+- Lista de meios de transporte utilizados
+- Total de dias de viagem
+- Total de dias em cada cidade
+- Mapa estático ou listagem com bandeiras dos países visitados (opcional)
+- Botão "Editar viajante"
+
+**Ao clicar em um bloco de cidade:**
+Abre sidebar com:
+- Nome da cidade + país (com bandeira emoji)
+- Quais viajantes estão nessa cidade e em que datas
+- Comparativo: quem chega antes/depois, quem fica mais tempo
+- Tabela: Viajante | Chegada | Saída | Dias
+- Highlight especial: quais viajantes estarão na mesma cidade **ao mesmo tempo** (sobreposição de datas) — esta info é estratégica para o grupo
+- Notas de acomodação (se preenchidas)
+- Botão "Editar estadia"
+
+**Ao clicar em um bloco de transporte:**
+Abre sidebar com:
+- Ícone + tipo de transporte
+- Origem → Destino
+- Data e horário de saída
+- Data e horário de chegada
+- Duração calculada automaticamente (em horas e minutos)
+- Indicador se é viagem noturna (cruza meia-noite)
+- Notas adicionais
+- Botão "Editar transporte"
+
+---
+
+### Modais de Criação/Edição
+
+**Modal: Novo Roteiro**
+- Campo: nome do roteiro
+- Campo: data início (date picker)
+- Campo: data fim (date picker)
+- Ao confirmar: renderiza a grade com as colunas de datas
+
+**Modal: Adicionar Viajante**
+- Campo: nome
+- Seletor de cor (palette de 8-10 cores predefinidas)
+- Campo: data de início da viagem deste viajante (pode ser diferente da data de início do roteiro)
+- Ao confirmar: cria linha na grade
+
+**Modal: Adicionar Cidade**
+- Acionado ao clicar em uma área vazia na linha do viajante OU via botão na sidebar do viajante
+- Campo: nome da cidade
+- Campo: país
+- Date picker: data de chegada
+- Date picker: data de saída
+- Campo texto: notas
+- Campo: acomodação (opcional)
+- Ao confirmar: renderiza bloco na linha do viajante
+
+**Modal: Adicionar Transporte**
+- Acionado ao clicar no espaço entre dois blocos de cidade OU via botão
+- Dropdown: tipo de transporte (com ícone de cada um)
+- Campos pré-preenchidos: cidade de origem, cidade de destino (inferidos pelo contexto)
+- Date/time picker: data e hora de partida
+- Date/time picker: data e hora de chegada
+- Checkbox: viagem noturna / trem com cama
+- Campo: notas
+- Ao confirmar: renderiza conector entre as cidades
+
+---
+
+### Features Adicionais Recomendadas
+
+**1. Indicador de co-presença (encontros do grupo):**
+- Calcular automaticamente quais viajantes estão na mesma cidade nas mesmas datas
+- Na grade, destacar visualmente essas células com uma borda ou ícone de grupo
+- Na sidebar da cidade, lista explícita de "Encontros confirmados" com nomes dos viajantes e datas
+
+**2. Zoom e navegação:**
+- Botões `+` e `-` para aumentar/diminuir a largura das colunas de dias (zoom temporal)
+- Botão "Hoje" para navegar ao dia atual
+- Botão "Ir para data..." com input de data para navegar rapidamente
+
+**3. Exportação:**
+- Botão "Exportar PNG" que usa `html2canvas` ou similar para capturar a grade e baixar como imagem
+- Botão "Exportar JSON" para salvar o estado atual como arquivo `.json`
+- Botão "Importar JSON" para carregar um roteiro salvo
+
+**4. Persistência local:**
+- Salvar automaticamente no `localStorage` a cada mudança
+- Ao abrir a aplicação, perguntar se deseja restaurar o último roteiro salvo
+
+**5. Tooltip rico ao passar o mouse:**
+- Sobre cidade: nome, viajante, datas, dias restantes
+- Sobre transporte: tipo, rota, horários, duração
+
+**6. Filtro de viajantes:**
+- Checkboxes no header para mostrar/ocultar linhas de viajantes específicos
+- Útil para grupos grandes
+
+**7. Mini-mapa / visão geral:**
+- No topo ou como overlay, uma linha do tempo comprimida mostrando a visão geral de todo o roteiro
+
+---
+
+### Stack Técnica Recomendada
+
+- **HTML5 + CSS3 + JavaScript ES6+** (vanilla JS é preferível para portabilidade, mas React é aceitável)
+- **CSS Grid ou Flexbox** para a grade; posicionamento absoluto para os blocos dentro das linhas
+- **Nenhuma dependência obrigatória** — mas pode usar:
+  - `dayjs` ou `date-fns` para manipulação de datas
+  - `html2canvas` para exportação de imagem
+  - Google Fonts (Inter ou Outfit)
+- **Sem backend** — toda a lógica é client-side, persistência via localStorage
+
+---
+
+### Referências Visuais (descrever para a IA)
+
+O resultado deve se parecer com uma combinação de:
+- **Jira Roadmap** / **Linear Timeline** — para a estrutura de linhas e colunas
+- **Google Flights** — clareza visual e cards de informação
+- **Notion Timeline** — blocos de conteúdo flutuando sobre a grade de datas
+
+Os blocos de cidade devem ter visual semelhante a **chips/tags de cor neutra** (fundo amarelo-claro ou azul-pastel, texto escuro), enquanto os conectores de transporte são **pequenos retângulos coloridos** funcionando como "peças" entre as cidades — intuitivos e imediatamente identificáveis pela cor.
+
+---
+
+### Dados de Exemplo para Popular na Inicialização
+
+Pré-carregar o seguinte cenário de exemplo para demonstração imediata da aplicação:
+```
+Roteiro: "Europa Junho 2026" — 20/05 a 11/06
+
+Viajante: Souto (cor: roxo)
+  - 20/05: Roma (3 dias) → voo → Milão (2 dias) → trem → Suíça/Genebra (4 dias) → trem → Suíça/Zurique (2 dias) → trem → Munich (3 dias) → trem → Salzburgo → Viena (múltiplos dias) → trem → Praga → Berlim
+
+Viajante: Joao (cor: azul)
+  - 31/05: Copenhagen (3 dias) → trem → Viena → Praga → Berlim
+
+Viajante: Tollini (cor: laranja)
+  - 02/06: Frankfurt (1 dia) → trem → Viena → Praga → Berlim
+
+Viajante: Euclides (cor: verde)
+  - 01/06: Frankfurt (1 dia) → trem → Viena → Praga → Berlim
+
+Viajante: Caiafa (cor: rosa)
+  - Lisboa (múltiplos dias) → voo → Madrid → Berlim
+
+Critérios de Qualidade Esperados
+
+A aplicação deve funcionar inteiramente no browser, sem servidor
+O código deve ser organizado em módulos com separação clara: data model, rendering, event handlers, modals
+A grade deve ser performática — renderizar 10 viajantes × 60 dias sem lentidão
+Toda a lógica de datas deve ser precisa — inclusão/exclusão de fins de semana, cálculo correto de sobreposições
+O design deve ser consistente e polido — não um protótipo, mas algo que pareça um produto real
+Mobile-friendly mínimo: leitura e visualização devem funcionar em telas de 768px+
+
+
+Este prompt descreve completamente o produto desejado. Implemente-o como uma aplicação web funcional, entregando um único arquivo HTML auto-contido (inline CSS + JS) ou uma estrutura de arquivos organizada conforme apropriado.
