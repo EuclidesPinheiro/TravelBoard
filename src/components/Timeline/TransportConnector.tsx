@@ -17,6 +17,7 @@ const TRANSPORT_COLORS: Record<string, string> = {
   bus: '#27AE60',
   car: '#9B59B6',
   ferry: '#1ABC9C',
+  walking: '#8D6E63',
 };
 
 export function TransportConnector({ segment, traveler, left, width }: TransportConnectorProps) {
