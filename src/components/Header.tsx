@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
-import { Calendar, Download, Plus, Save, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Calendar, Download, Plus, Save, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../utils/cn';
 import html2canvas from 'html2canvas';
 
 export function Header() {
-  const { itinerary, setItinerary, versions, activeVersionIndex, switchVersion, cloneVersion, zoomLevel, setZoomLevel, setSelection } = useItinerary();
+  const { itinerary, setItinerary, versions, activeVersionIndex, switchVersion, cloneVersion, deleteVersion, zoomLevel, setZoomLevel, setSelection } = useItinerary();
   const [confirmClear, setConfirmClear] = useState(false);
 
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 20, 160));
@@ -49,18 +49,28 @@ export function Header() {
           {/* Version Tabs */}
           <div className="flex items-center gap-1 ml-2">
             {versions.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => switchVersion(i)}
-                className={cn(
-                  "w-8 h-8 rounded-lg text-sm font-semibold transition-colors",
-                  i === activeVersionIndex
-                    ? "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300"
-                    : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+              <div key={i} className="relative">
+                <button
+                  onClick={() => switchVersion(i)}
+                  className={cn(
+                    "w-8 h-8 rounded-lg text-sm font-semibold transition-colors",
+                    i === activeVersionIndex
+                      ? "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300"
+                      : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                  )}
+                >
+                  {i + 1}
+                </button>
+                {i > 0 && i === activeVersionIndex && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteVersion(i); }}
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-slate-300 hover:bg-red-500 text-white flex items-center justify-center transition-colors"
+                    title="Delete this version"
+                  >
+                    <X size={10} strokeWidth={3} />
+                  </button>
                 )}
-              >
-                {i + 1}
-              </button>
+              </div>
             ))}
             <button
               onClick={cloneVersion}
