@@ -1,6 +1,17 @@
 // src/types.ts
 export type TransportMode = 'flight' | 'train' | 'night_train' | 'bus' | 'car' | 'ferry' | 'walking';
 
+export interface Stay {
+  id: string;
+  name: string;
+  link?: string;
+  checkInDate: string; // YYYY-MM-DD
+  checkInTime: string; // HH:mm
+  checkOutDate: string; // YYYY-MM-DD
+  checkOutTime: string; // HH:mm
+  sharedWith: string[]; // traveler IDs
+}
+
 export interface CitySegment {
   type: 'city';
   id: string;
@@ -10,6 +21,7 @@ export interface CitySegment {
   endDate: string; // YYYY-MM-DD
   notes?: string;
   accommodation?: string;
+  stays?: Stay[];
 }
 
 export interface TransportSegment {

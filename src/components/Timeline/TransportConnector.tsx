@@ -45,7 +45,7 @@ export function TransportConnector({ segment, traveler, left, width }: Transport
           isSelected ? "ring-2 ring-offset-1 ring-slate-800" : "shadow-sm"
         )}
         style={{ backgroundColor: color }}
-        onClick={() => setSelection({ type: 'transport', travelerId: traveler.id, segmentId: segment.id })}
+        onClick={() => setSelection(isSelected ? null : { type: 'transport', travelerId: traveler.id, segmentId: segment.id })}
         title={`${segment.mode}: ${segment.from} to ${segment.to} (${segment.departureTime} - ${segment.arrivalTime})`}
       />
     </div>

@@ -51,7 +51,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
           backgroundColor: `${cityColor}15`,
           borderColor: `${cityColor}40`,
         }}
-        onClick={() => setSelection({ type: 'city', travelerId: traveler.id, segmentId: segment.id })}
+        onClick={() => setSelection(isSelected ? null : { type: 'city', travelerId: traveler.id, segmentId: segment.id })}
         title={`${segment.cityName} (${segment.startDate} to ${segment.endDate})`}
       >
         <div
