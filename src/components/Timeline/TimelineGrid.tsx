@@ -24,7 +24,7 @@ export function TimelineGrid() {
   }, [days, zoomLevel]);
 
   return (
-    <div className="flex-1 overflow-auto bg-white relative" id="timeline-grid" ref={scrollRef}>
+    <div className="overflow-auto bg-white relative shrink-0" id="timeline-grid" ref={scrollRef}>
       <div className="inline-block min-w-full">
         {/* Header Row (Dates) */}
         <div className="sticky top-0 z-30 flex bg-white border-b border-slate-200 shadow-sm">
