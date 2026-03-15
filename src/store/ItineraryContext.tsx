@@ -13,6 +13,8 @@ interface ItineraryContextType {
   deleteVersion: (index: number) => void;
   selection: SelectionType;
   setSelection: React.Dispatch<React.SetStateAction<SelectionType>>;
+  highlightedTravelerId: string | null;
+  setHighlightedTravelerId: React.Dispatch<React.SetStateAction<string | null>>;
   zoomLevel: number;
   setZoomLevel: React.Dispatch<React.SetStateAction<number>>;
 }
@@ -59,6 +61,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
   });
 
   const [selection, setSelection] = useState<SelectionType>(null);
+  const [highlightedTravelerId, setHighlightedTravelerId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(80);
 
   const safeIndex = Math.min(activeVersionIndex, versions.length - 1);
@@ -103,6 +106,7 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
       itinerary, setItinerary,
       versions, activeVersionIndex: safeIndex, switchVersion, cloneVersion, deleteVersion,
       selection, setSelection,
+      highlightedTravelerId, setHighlightedTravelerId,
       zoomLevel, setZoomLevel,
     }}>
       {children}

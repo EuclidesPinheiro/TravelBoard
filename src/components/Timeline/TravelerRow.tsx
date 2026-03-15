@@ -5,6 +5,7 @@ import { differenceInDays, parseISO, startOfDay } from 'date-fns';
 import { CityBlock } from './CityBlock';
 import { TransportConnector } from './TransportConnector';
 import { AddCityPopover } from './AddCityPopover';
+import { Info } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 interface TravelerRowProps {
@@ -16,11 +17,12 @@ interface TravelerRowProps {
 }
 
 export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: TravelerRowProps) {
-  const { itinerary, zoomLevel, setSelection, selection } = useItinerary();
+  const { itinerary, zoomLevel, setSelection, selection, highlightedTravelerId, setHighlightedTravelerId } = useItinerary();
   const itineraryStart = startOfDay(parseISO(itinerary.startDate));
   const [popover, setPopover] = useState<{ dayIndex: number; x: number; y: number } | null>(null);
 
-  const isSelected = selection?.type === 'traveler' && selection.travelerId === traveler.id;
+  const isHighlighted = highlightedTravelerId === traveler.id;
+  const isDimmed = highlightedTravelerId !== null && highlightedTravelerId !== traveler.id;
 
   // Compute which day indices are occupied by a segment
   const occupiedDays = useMemo(() => {
@@ -55,18 +57,29 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: Traveler
     });
   }
 
+  function handleRowClick() {
+    if (isHighlighted) {
+      setHighlightedTravelerId(null);
+    } else {
+      setHighlightedTravelerId(traveler.id);
+    }
+  }
+
   return (
     <div className={cn(
-      "flex border-b border-slate-100 group transition-colors relative h-[72px]",
-      isSelected ? "bg-indigo-50/30" : "hover:bg-slate-50/50"
-    )}>
+      "flex border-b transition-all relative h-[72px] group",
+      isHighlighted ? "border-slate-300 bg-white" : "border-slate-100",
+      isDimmed ? "opacity-40" : "hover:bg-slate-50/50"
+    )}
+    style={isHighlighted ? { boxShadow: `inset 0 0 0 2px ${traveler.color}40` } : undefined}
+    >
       {/* Sticky Left Column */}
       <div
         className={cn(
-          "w-64 shrink-0 border-r border-slate-200 sticky left-0 z-20 flex items-center px-4 cursor-pointer transition-colors",
-          isSelected ? "bg-indigo-50/80" : "bg-white group-hover:bg-slate-50/80"
+          "w-64 shrink-0 border-r border-slate-200 sticky left-0 z-20 flex items-center px-4 cursor-pointer transition-colors relative",
+          isHighlighted ? "bg-white" : isDimmed ? "bg-white" : "bg-white group-hover:bg-slate-50/80"
         )}
-        onClick={() => setSelection({ type: 'traveler', travelerId: traveler.id })}
+        onClick={handleRowClick}
       >
         <div
           className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 ring-white"
@@ -74,10 +87,21 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: Traveler
         >
           {traveler.name.substring(0, 2).toUpperCase()}
         </div>
-        <div className="ml-3 truncate">
+        <div className="ml-3 truncate flex-1">
           <div className="font-medium text-slate-900 truncate">{traveler.name}</div>
           <div className="text-xs text-slate-500 truncate">{traveler.segments.filter(s => s.type === 'city').length} cities</div>
         </div>
+        {/* Details button */}
+        <button
+          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-slate-100 hover:bg-indigo-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelection({ type: 'traveler', travelerId: traveler.id });
+          }}
+          title="View details"
+        >
+          <Info size={12} />
+        </button>
       </div>
 
       {/* Timeline Area */}
