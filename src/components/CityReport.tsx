@@ -1,15 +1,64 @@
 import { useState, useMemo } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
-import { CitySegment } from '../types';
+import { CitySegment, TransportSegment } from '../types';
 import { getCityColor } from '../utils/cityColors';
-import { differenceInDays, parseISO } from 'date-fns';
+import { parseISO, differenceInHours, differenceInMinutes } from 'date-fns';
 import { ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { cn } from '../utils/cn';
 
+interface TravelerCityTime {
+  name: string;
+  color: string;
+  hours: number;
+}
+
 interface CityData {
   cityName: string;
-  totalDays: number;
-  travelers: { name: string; color: string; days: number }[];
+  totalHours: number;
+  travelers: TravelerCityTime[];
+}
+
+function formatHours(totalHours: number): string {
+  const days = Math.floor(totalHours / 24);
+  const h = Math.floor(totalHours % 24);
+  const m = Math.round((totalHours - Math.floor(totalHours)) * 60);
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days} ${days === 1 ? 'day' : 'days'}`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0 && days === 0) parts.push(`${m}min`);
+  return parts.length > 0 ? parts.join(' ') : '0h';
+}
+
+function getCityHours(
+  citySegment: CitySegment,
+  prevSegment: TransportSegment | null,
+  nextSegment: TransportSegment | null
+): number {
+  // Start: arrival time of previous transport, or start of startDate (00:00)
+  let startDate: Date;
+  if (prevSegment) {
+    const [h, m] = prevSegment.arrivalTime.split(':').map(Number);
+    startDate = parseISO(prevSegment.arrivalDate);
+    startDate.setHours(h, m, 0, 0);
+  } else {
+    startDate = parseISO(citySegment.startDate);
+    startDate.setHours(0, 0, 0, 0);
+  }
+
+  // End: departure time of next transport, or end of endDate (23:59)
+  let endDate: Date;
+  if (nextSegment) {
+    const [h, m] = nextSegment.departureTime.split(':').map(Number);
+    endDate = parseISO(nextSegment.departureDate);
+    endDate.setHours(h, m, 0, 0);
+  } else {
+    endDate = parseISO(citySegment.endDate);
+    endDate.setHours(23, 59, 0, 0);
+  }
+
+  const minutes = differenceInMinutes(endDate, startDate);
+  return Math.max(0, minutes / 60);
 }
 
 export function CityReport() {
@@ -20,25 +69,32 @@ export function CityReport() {
     const map = new Map<string, CityData>();
 
     for (const traveler of itinerary.travelers) {
-      for (const segment of traveler.segments) {
+      const segments = traveler.segments;
+      for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i];
         if (segment.type !== 'city') continue;
         const city = segment as CitySegment;
-        const days = differenceInDays(parseISO(city.endDate), parseISO(city.startDate));
-        if (days <= 0) continue;
+
+        // Find adjacent transports
+        const prev = i > 0 && segments[i - 1].type === 'transport' ? segments[i - 1] as TransportSegment : null;
+        const next = i < segments.length - 1 && segments[i + 1].type === 'transport' ? segments[i + 1] as TransportSegment : null;
+
+        const hours = getCityHours(city, prev, next);
+        if (hours <= 0) continue;
 
         if (!map.has(city.cityName)) {
-          map.set(city.cityName, { cityName: city.cityName, totalDays: 0, travelers: [] });
+          map.set(city.cityName, { cityName: city.cityName, totalHours: 0, travelers: [] });
         }
         const entry = map.get(city.cityName)!;
-        entry.totalDays += days;
-        entry.travelers.push({ name: traveler.name, color: traveler.color, days });
+        entry.totalHours += hours;
+        entry.travelers.push({ name: traveler.name, color: traveler.color, hours });
       }
     }
 
-    return Array.from(map.values()).sort((a, b) => b.totalDays - a.totalDays);
+    return Array.from(map.values()).sort((a, b) => b.totalHours - a.totalHours);
   }, [itinerary]);
 
-  const maxDays = useMemo(() => Math.max(...cityData.map(c => c.totalDays), 1), [cityData]);
+  const maxHours = useMemo(() => Math.max(...cityData.map(c => c.totalHours), 1), [cityData]);
 
   if (cityData.length === 0) return null;
 
@@ -53,7 +109,7 @@ export function CityReport() {
         {cityData.map(city => {
           const isExpanded = expandedCity === city.cityName;
           const cityColor = getCityColor(city.cityName);
-          const barWidth = (city.totalDays / maxDays) * 100;
+          const barWidth = (city.totalHours / maxHours) * 100;
 
           return (
             <div key={city.cityName}>
@@ -74,10 +130,10 @@ export function CityReport() {
                 <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
                   <div
                     className="h-full rounded flex items-center px-2 transition-all"
-                    style={{ width: `${barWidth}%`, backgroundColor: `${cityColor}30`, borderLeft: `3px solid ${cityColor}` }}
+                    style={{ width: `${Math.max(barWidth, 8)}%`, backgroundColor: `${cityColor}30`, borderLeft: `3px solid ${cityColor}` }}
                   >
                     <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
-                      {city.totalDays} {city.totalDays === 1 ? 'day' : 'days'}
+                      {formatHours(city.totalHours)}
                     </span>
                   </div>
                 </div>
@@ -90,7 +146,7 @@ export function CityReport() {
               {isExpanded && (
                 <div className="ml-12 mr-3 mb-2 space-y-1 mt-1">
                   {city.travelers.map((t, i) => {
-                    const tBarWidth = (t.days / city.totalDays) * 100;
+                    const tBarWidth = (t.hours / city.totalHours) * 100;
                     return (
                       <div key={i} className="flex items-center gap-3">
                         <div className="flex items-center gap-2 w-24 shrink-0">
@@ -105,10 +161,10 @@ export function CityReport() {
                         <div className="flex-1 h-4 bg-slate-100 rounded overflow-hidden">
                           <div
                             className="h-full rounded flex items-center px-1.5 transition-all"
-                            style={{ width: `${tBarWidth}%`, backgroundColor: `${t.color}30`, borderLeft: `2px solid ${t.color}` }}
+                            style={{ width: `${Math.max(tBarWidth, 8)}%`, backgroundColor: `${t.color}30`, borderLeft: `2px solid ${t.color}` }}
                           >
                             <span className="text-[10px] font-medium text-slate-600 whitespace-nowrap">
-                              {t.days}d
+                              {formatHours(t.hours)}
                             </span>
                           </div>
                         </div>
