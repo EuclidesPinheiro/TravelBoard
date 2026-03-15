@@ -54,7 +54,7 @@ function getCityHours(
     endDate.setHours(h, m, 0, 0);
   } else {
     endDate = parseISO(citySegment.endDate);
-    endDate.setHours(23, 59, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
   }
 
   const minutes = differenceInMinutes(endDate, startDate);

@@ -143,7 +143,7 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: Traveler
 
             // Find next transport
             const nextSeg = index < traveler.segments.length - 1 ? traveler.segments[index + 1] : null;
-            let endFraction = 1; // default to end of the day
+            let endFraction = 0; // endDate is exclusive, so block ends at start of that day
             let endOffsetDays = differenceInDays(startOfDay(parseISO(citySeg.endDate)), itineraryStart);
 
             if (nextSeg && nextSeg.type === 'transport') {
