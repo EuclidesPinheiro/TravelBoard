@@ -67,7 +67,7 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: Traveler
 
   return (
     <div className={cn(
-      "flex border-b transition-all relative h-[72px] group",
+      "flex border-b transition-[background-color,opacity,box-shadow] relative h-[72px] group",
       isHighlighted ? "border-slate-300 bg-white" : "border-slate-100",
       isDimmed ? "opacity-40" : "hover:bg-slate-50/50"
     )}
@@ -76,8 +76,8 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: Traveler
       {/* Sticky Left Column */}
       <div
         className={cn(
-          "w-64 shrink-0 border-r border-slate-200 sticky left-0 z-20 flex items-center px-4 cursor-pointer transition-colors relative",
-          isHighlighted ? "bg-white" : isDimmed ? "bg-white" : "bg-white group-hover:bg-slate-50/80"
+          "w-64 shrink-0 border-r border-slate-200 sticky left-0 z-20 flex items-center px-4 cursor-pointer transition-colors shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
+          isHighlighted ? "bg-white" : isDimmed ? "bg-white" : "bg-white group-hover:bg-slate-50"
         )}
         onClick={handleRowClick}
       >

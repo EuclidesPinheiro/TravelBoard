@@ -45,10 +45,8 @@ function AppContent() {
       <Header />
       <div className="flex flex-1 overflow-hidden relative">
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 flex flex-col overflow-y-auto">
-            <TimelineGrid />
-            <CityReport />
-          </div>
+          <TimelineGrid />
+          <CityReport />
         </main>
         <Sidebar />
       </div>

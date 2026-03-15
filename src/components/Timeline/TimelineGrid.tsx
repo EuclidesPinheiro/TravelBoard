@@ -24,11 +24,11 @@ export function TimelineGrid() {
   }, [days, zoomLevel]);
 
   return (
-    <div className="overflow-auto bg-white relative shrink-0" id="timeline-grid" ref={scrollRef}>
+    <div className="flex-1 overflow-auto bg-white relative" id="timeline-grid" ref={scrollRef}>
       <div className="inline-block min-w-full">
         {/* Header Row (Dates) */}
         <div className="sticky top-0 z-30 flex bg-white border-b border-slate-200 shadow-sm">
-          <div className="w-64 shrink-0 border-r border-slate-200 bg-slate-50/90 backdrop-blur-sm sticky left-0 z-40 flex items-center px-4">
+          <div className="w-64 shrink-0 border-r border-slate-200 bg-slate-50 sticky left-0 z-40 flex items-center px-4 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Travelers</span>
           </div>
           <div className="flex">
@@ -78,7 +78,7 @@ export function TimelineGrid() {
             className="flex h-[52px] border border-slate-200 hover:bg-indigo-50/40 cursor-pointer transition-colors group"
             onClick={() => setIsAddTravelerOpen(true)}
           >
-            <div className="w-64 shrink-0 sticky left-0 z-20 bg-white group-hover:bg-indigo-50/40 border-r border-slate-200 transition-colors flex items-center justify-center">
+            <div className="w-64 shrink-0 sticky left-0 z-20 bg-white group-hover:bg-indigo-50/40 border-r border-slate-200 transition-colors flex items-center justify-center shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
               <div className="flex items-center gap-2 text-indigo-300 group-hover:text-indigo-500 transition-colors">
                 <div className="w-7 h-7 rounded-full bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
                   <Plus size={14} strokeWidth={2.5} />
