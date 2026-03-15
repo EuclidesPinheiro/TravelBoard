@@ -8,6 +8,7 @@ import { ItineraryProvider, useItinerary } from './store/ItineraryContext';
 import { Header } from './components/Header';
 import { TimelineGrid } from './components/Timeline/TimelineGrid';
 import { CityReport } from './components/CityReport';
+import { TransportReport } from './components/TransportReport';
 import { Sidebar } from './components/Sidebar/Sidebar';
 
 function useDeleteSelection() {
@@ -47,6 +48,7 @@ function AppContent() {
         <main className="flex-1 flex flex-col overflow-hidden">
           <TimelineGrid />
           <CityReport />
+          <TransportReport />
         </main>
         <Sidebar />
       </div>
