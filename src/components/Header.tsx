@@ -1,9 +1,10 @@
 import { useItinerary } from '../store/ItineraryContext';
-import { Calendar, Download, Save, ZoomIn, ZoomOut } from 'lucide-react';
+import { Calendar, Download, Plus, Save, ZoomIn, ZoomOut } from 'lucide-react';
+import { cn } from '../utils/cn';
 import html2canvas from 'html2canvas';
 
 export function Header() {
-  const { itinerary, zoomLevel, setZoomLevel } = useItinerary();
+  const { itinerary, versions, activeVersionIndex, switchVersion, cloneVersion, zoomLevel, setZoomLevel } = useItinerary();
 
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 20, 160));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 20, 40));
@@ -41,6 +42,31 @@ export function Header() {
             <p className="text-xs text-slate-500 font-medium">
               {new Date(itinerary.startDate).toLocaleDateString()} - {new Date(itinerary.endDate).toLocaleDateString()}
             </p>
+          </div>
+
+          {/* Version Tabs */}
+          <div className="flex items-center gap-1 ml-2">
+            {versions.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => switchVersion(i)}
+                className={cn(
+                  "w-8 h-8 rounded-lg text-sm font-semibold transition-colors",
+                  i === activeVersionIndex
+                    ? "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                )}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={cloneVersion}
+              className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 hover:bg-indigo-100 hover:text-indigo-600 transition-colors flex items-center justify-center"
+              title="Clone current version"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+            </button>
           </div>
         </div>
 
