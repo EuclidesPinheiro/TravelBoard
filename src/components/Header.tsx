@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
-import { Calendar, Download, Plus, Save, ZoomIn, ZoomOut } from 'lucide-react';
+import { Calendar, Download, Plus, Save, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../utils/cn';
 import html2canvas from 'html2canvas';
 
 export function Header() {
-  const { itinerary, versions, activeVersionIndex, switchVersion, cloneVersion, zoomLevel, setZoomLevel } = useItinerary();
+  const { itinerary, setItinerary, versions, activeVersionIndex, switchVersion, cloneVersion, zoomLevel, setZoomLevel, setSelection } = useItinerary();
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 20, 160));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 20, 40));
@@ -71,6 +73,38 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-3">
+          {!confirmClear ? (
+            <button
+              onClick={() => setConfirmClear(true)}
+              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              title="Clear all cities and transports"
+            >
+              <Trash2 size={16} />
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+              <span className="text-xs text-red-600 font-medium whitespace-nowrap">Clear all?</span>
+              <button
+                onClick={() => {
+                  setItinerary(prev => ({
+                    ...prev,
+                    travelers: prev.travelers.map(t => ({ ...t, segments: [] })),
+                  }));
+                  setSelection(null);
+                  setConfirmClear(false);
+                }}
+                className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"
+              >
+                Yes
+              </button>
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="px-2 py-0.5 bg-white border border-slate-200 text-slate-600 text-xs font-medium rounded hover:bg-slate-50 transition-colors"
+              >
+                No
+              </button>
+            </div>
+          )}
           <div className="flex items-center bg-slate-100 rounded-lg p-1 mr-2">
             <button onClick={handleZoomOut} className="p-1.5 hover:bg-white rounded-md text-slate-600 transition-colors" title="Zoom Out">
               <ZoomOut size={16} />

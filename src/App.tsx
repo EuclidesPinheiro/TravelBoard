@@ -19,7 +19,7 @@ function useDeleteSelection() {
       // Don't delete if user is typing in an input
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if (!selection || selection.type !== 'city') return;
+      if (!selection || (selection.type !== 'city' && selection.type !== 'transport')) return;
 
       const { travelerId, segmentId } = selection;
       setItinerary(prev => ({
