@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
 import { CitySegment, TransportSegment } from '../types';
 import { getCityColor } from '../utils/cityColors';
-import { parseISO, differenceInHours, differenceInMinutes } from 'date-fns';
+import { parseISO, differenceInMinutes } from 'date-fns';
 import { ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -62,13 +62,17 @@ function getCityHours(
 }
 
 export function CityReport() {
-  const { itinerary } = useItinerary();
+  const { itinerary, highlightedTravelerId } = useItinerary();
   const [expandedCity, setExpandedCity] = useState<string | null>(null);
+
+  const filteredTravelers = highlightedTravelerId
+    ? itinerary.travelers.filter(t => t.id === highlightedTravelerId)
+    : itinerary.travelers;
 
   const cityData = useMemo(() => {
     const map = new Map<string, CityData>();
 
-    for (const traveler of itinerary.travelers) {
+    for (const traveler of filteredTravelers) {
       const segments = traveler.segments;
       for (let i = 0; i < segments.length; i++) {
         const segment = segments[i];
@@ -92,9 +96,13 @@ export function CityReport() {
     }
 
     return Array.from(map.values()).sort((a, b) => b.totalHours - a.totalHours);
-  }, [itinerary]);
+  }, [filteredTravelers]);
 
   const maxHours = useMemo(() => Math.max(...cityData.map(c => c.totalHours), 1), [cityData]);
+
+  const highlightedTraveler = highlightedTravelerId
+    ? itinerary.travelers.find(t => t.id === highlightedTravelerId)
+    : null;
 
   if (cityData.length === 0) return null;
 
@@ -103,6 +111,11 @@ export function CityReport() {
       <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
         <MapPin size={14} />
         Time per City
+        {highlightedTraveler && (
+          <span className="normal-case tracking-normal text-xs font-medium text-slate-400">
+            — {highlightedTraveler.name}
+          </span>
+        )}
       </h2>
 
       <div className="space-y-1">
@@ -119,11 +132,13 @@ export function CityReport() {
                   "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left group",
                   isExpanded ? "bg-slate-50" : "hover:bg-slate-50"
                 )}
-                onClick={() => setExpandedCity(isExpanded ? null : city.cityName)}
+                onClick={() => !highlightedTravelerId && setExpandedCity(isExpanded ? null : city.cityName)}
               >
-                <div className="flex items-center gap-1 text-slate-400">
-                  {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </div>
+                {!highlightedTravelerId && (
+                  <div className="flex items-center gap-1 text-slate-400">
+                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </div>
+                )}
                 <span className="text-sm font-medium text-slate-700 w-28 shrink-0 truncate">
                   {city.cityName}
                 </span>
@@ -137,13 +152,15 @@ export function CityReport() {
                     </span>
                   </div>
                 </div>
-                <span className="text-xs text-slate-400 shrink-0">
-                  {city.travelers.length} {city.travelers.length === 1 ? 'traveler' : 'travelers'}
-                </span>
+                {!highlightedTravelerId && (
+                  <span className="text-xs text-slate-400 shrink-0">
+                    {city.travelers.length} {city.travelers.length === 1 ? 'traveler' : 'travelers'}
+                  </span>
+                )}
               </button>
 
               {/* Expanded detail */}
-              {isExpanded && (
+              {isExpanded && !highlightedTravelerId && (
                 <div className="ml-12 mr-3 mb-2 space-y-1 mt-1">
                   {city.travelers.map((t, i) => {
                     const tBarWidth = (t.hours / city.totalHours) * 100;

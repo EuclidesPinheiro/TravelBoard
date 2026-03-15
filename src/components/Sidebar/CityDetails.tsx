@@ -4,7 +4,7 @@ import { MapPin, Calendar, Home, Users, PlaneLanding, PlaneTakeoff } from 'lucid
 import { differenceInDays, parseISO, format } from 'date-fns';
 
 export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segmentId: string }) {
-  const { itinerary } = useItinerary();
+  const { itinerary, setItinerary } = useItinerary();
   const segmentIndex = traveler.segments.findIndex(s => s.id === segmentId);
   const segment = traveler.segments[segmentIndex] as CitySegment;
 
@@ -18,13 +18,69 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
 
   // Real arrival: transport arrival or start of startDate
   const arrivalDate = prevTransport ? prevTransport.arrivalDate : segment.startDate;
-  const arrivalTime = prevTransport ? prevTransport.arrivalTime : null;
+  const arrivalTime = prevTransport ? prevTransport.arrivalTime : '';
 
   // Real departure: transport departure or end of endDate
   const departureDate = nextTransport ? nextTransport.departureDate : segment.endDate;
-  const departureTime = nextTransport ? nextTransport.departureTime : null;
+  const departureTime = nextTransport ? nextTransport.departureTime : '';
 
   const days = differenceInDays(parseISO(segment.endDate), parseISO(segment.startDate));
+
+  // Build comparable datetime: "YYYY-MM-DD HH:mm" (or "YYYY-MM-DD" if no time)
+  function toDateTime(date: string, time: string): string {
+    return time ? `${date}T${time}` : `${date}T00:00`;
+  }
+
+  function updateSegment(travelerId: string, segmentId: string, updater: (seg: any) => any) {
+    setItinerary(prev => ({
+      ...prev,
+      travelers: prev.travelers.map(t => {
+        if (t.id !== travelerId) return t;
+        return {
+          ...t,
+          segments: t.segments.map(s => s.id === segmentId ? updater(s) : s),
+        };
+      }),
+    }));
+  }
+
+  function handleArrivalDateChange(newDate: string) {
+    if (!newDate) return;
+    const newArrival = toDateTime(newDate, arrivalTime);
+    const depDt = toDateTime(departureDate, departureTime);
+    if (newArrival > depDt) return;
+    updateSegment(traveler.id, segment.id, s => ({ ...s, startDate: newDate }));
+    if (prevTransport) {
+      updateSegment(traveler.id, prevTransport.id, s => ({ ...s, arrivalDate: newDate }));
+    }
+  }
+
+  function handleArrivalTimeChange(newTime: string) {
+    if (!prevTransport || !newTime) return;
+    const newArrival = toDateTime(arrivalDate, newTime);
+    const depDt = toDateTime(departureDate, departureTime);
+    if (newArrival > depDt) return;
+    updateSegment(traveler.id, prevTransport.id, s => ({ ...s, arrivalTime: newTime }));
+  }
+
+  function handleDepartureDateChange(newDate: string) {
+    if (!newDate) return;
+    const arrDt = toDateTime(arrivalDate, arrivalTime);
+    const newDeparture = toDateTime(newDate, departureTime);
+    if (newDeparture < arrDt) return;
+    updateSegment(traveler.id, segment.id, s => ({ ...s, endDate: newDate }));
+    if (nextTransport) {
+      updateSegment(traveler.id, nextTransport.id, s => ({ ...s, departureDate: newDate }));
+    }
+  }
+
+  function handleDepartureTimeChange(newTime: string) {
+    if (!nextTransport || !newTime) return;
+    const arrDt = toDateTime(arrivalDate, arrivalTime);
+    const newDeparture = toDateTime(departureDate, newTime);
+    if (newDeparture < arrDt) return;
+    updateSegment(traveler.id, nextTransport.id, s => ({ ...s, departureTime: newTime }));
+  }
 
   // Find co-presence
   const start = parseISO(segment.startDate);
@@ -46,10 +102,6 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     return { traveler: t, overlaps: overlappingCities };
   }).filter(item => item.overlaps.length > 0);
 
-  function formatDateDisplay(dateStr: string): string {
-    return format(parseISO(dateStr), 'dd/MM/yyyy');
-  }
-
   function formatDateShort(dateStr: string): string {
     return format(parseISO(dateStr), 'dd/MM');
   }
@@ -69,14 +121,29 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         {/* Arrival */}
         <div className="flex items-start gap-3">
           <PlaneLanding className="text-green-500 shrink-0 mt-0.5" size={16} />
-          <div>
-            <div className="text-xs text-slate-500">Arrival</div>
-            <div className="text-sm font-medium text-slate-900">
-              {formatDateDisplay(arrivalDate)}
-              {arrivalTime && <span className="text-indigo-600 ml-1.5">at {arrivalTime}</span>}
+          <div className="flex-1 min-w-0">
+            <div className="text-xs text-slate-500 mb-1">Arrival</div>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={arrivalDate}
+                max={departureDate}
+                onChange={e => handleArrivalDateChange(e.target.value)}
+                className="text-sm font-medium text-slate-900 bg-white border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 w-[130px]"
+              />
+              {prevTransport ? (
+                <input
+                  type="time"
+                  value={arrivalTime}
+                  onChange={e => handleArrivalTimeChange(e.target.value)}
+                  className="text-sm font-medium text-indigo-600 bg-white border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 w-[90px]"
+                />
+              ) : (
+                <span className="text-xs text-slate-400 italic">no transport</span>
+              )}
             </div>
             {prevTransport && (
-              <div className="text-xs text-slate-400 mt-0.5">from {prevTransport.from}</div>
+              <div className="text-xs text-slate-400 mt-1">from {prevTransport.from}</div>
             )}
           </div>
         </div>
@@ -84,14 +151,29 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         {/* Departure */}
         <div className="flex items-start gap-3 pt-2 border-t border-slate-200/60">
           <PlaneTakeoff className="text-red-500 shrink-0 mt-0.5" size={16} />
-          <div>
-            <div className="text-xs text-slate-500">Departure</div>
-            <div className="text-sm font-medium text-slate-900">
-              {formatDateDisplay(departureDate)}
-              {departureTime && <span className="text-indigo-600 ml-1.5">at {departureTime}</span>}
+          <div className="flex-1 min-w-0">
+            <div className="text-xs text-slate-500 mb-1">Departure</div>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={departureDate}
+                min={arrivalDate}
+                onChange={e => handleDepartureDateChange(e.target.value)}
+                className="text-sm font-medium text-slate-900 bg-white border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 w-[130px]"
+              />
+              {nextTransport ? (
+                <input
+                  type="time"
+                  value={departureTime}
+                  onChange={e => handleDepartureTimeChange(e.target.value)}
+                  className="text-sm font-medium text-indigo-600 bg-white border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 w-[90px]"
+                />
+              ) : (
+                <span className="text-xs text-slate-400 italic">no transport</span>
+              )}
             </div>
             {nextTransport && (
-              <div className="text-xs text-slate-400 mt-0.5">to {nextTransport.to}</div>
+              <div className="text-xs text-slate-400 mt-1">to {nextTransport.to}</div>
             )}
           </div>
         </div>
@@ -148,10 +230,6 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
           </p>
         </div>
       )}
-
-      <button className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg text-sm transition-colors">
-        Edit Stay
-      </button>
     </div>
   );
 }
