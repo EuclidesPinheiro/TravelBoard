@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
 import { TransportSegment, TransportMode } from '../types';
 import { parseISO, differenceInMinutes } from 'date-fns';
-import { ChevronDown, ChevronRight, Navigation } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 const TRANSPORT_COLORS: Record<string, string> = {
@@ -102,16 +102,12 @@ export function TransportReport() {
   if (transportData.length === 0) return null;
 
   return (
-    <div className="border-t border-slate-200 bg-white px-6 py-5">
-      <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-        <Navigation size={14} />
-        Time per Transport
-        {highlightedTraveler && (
-          <span className="normal-case tracking-normal text-xs font-medium text-slate-400">
-            — {highlightedTraveler.name}
-          </span>
-        )}
-      </h2>
+    <div className="bg-slate-50 px-6 py-4">
+      {highlightedTraveler && (
+        <p className="text-xs font-medium text-slate-400 mb-3">
+          Showing: {highlightedTraveler.name}
+        </p>
+      )}
 
       <div className="space-y-1">
         {transportData.map(transport => {

@@ -7,8 +7,7 @@ import { useEffect } from 'react';
 import { ItineraryProvider, useItinerary } from './store/ItineraryContext';
 import { Header } from './components/Header';
 import { TimelineGrid } from './components/Timeline/TimelineGrid';
-import { CityReport } from './components/CityReport';
-import { TransportReport } from './components/TransportReport';
+import { ReportTabs } from './components/ReportTabs';
 import { Sidebar } from './components/Sidebar/Sidebar';
 
 function useDeleteSelection() {
@@ -47,8 +46,7 @@ function AppContent() {
       <div className="flex flex-1 overflow-hidden relative">
         <main className="flex-1 flex flex-col overflow-hidden">
           <TimelineGrid />
-          <CityReport />
-          <TransportReport />
+          <ReportTabs />
         </main>
         <Sidebar />
       </div>

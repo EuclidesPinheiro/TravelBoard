@@ -3,7 +3,7 @@ import { useItinerary } from '../store/ItineraryContext';
 import { CitySegment, TransportSegment } from '../types';
 import { getCityColor } from '../utils/cityColors';
 import { parseISO, differenceInMinutes } from 'date-fns';
-import { ChevronDown, ChevronRight, MapPin } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 interface TravelerCityTime {
@@ -107,16 +107,12 @@ export function CityReport() {
   if (cityData.length === 0) return null;
 
   return (
-    <div className="border-t border-slate-200 bg-white px-6 py-5">
-      <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-        <MapPin size={14} />
-        Time per City
-        {highlightedTraveler && (
-          <span className="normal-case tracking-normal text-xs font-medium text-slate-400">
-            — {highlightedTraveler.name}
-          </span>
-        )}
-      </h2>
+    <div className="bg-slate-50 px-6 py-4">
+      {highlightedTraveler && (
+        <p className="text-xs font-medium text-slate-400 mb-3">
+          Showing: {highlightedTraveler.name}
+        </p>
+      )}
 
       <div className="space-y-1">
         {cityData.map(city => {
