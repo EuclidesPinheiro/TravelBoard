@@ -1,12 +1,9 @@
-import { useState } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
-import { Calendar, Download, Plus, Save, Users, ZoomIn, ZoomOut } from 'lucide-react';
+import { Calendar, Download, Save, ZoomIn, ZoomOut } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { AddTravelerModal } from './Modals/AddTravelerModal';
 
 export function Header() {
   const { itinerary, zoomLevel, setZoomLevel } = useItinerary();
-  const [isAddTravelerOpen, setIsAddTravelerOpen] = useState(false);
 
   const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 20, 160));
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 20, 40));
@@ -34,7 +31,6 @@ export function Header() {
   };
 
   return (
-    <>
       <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center w-10 h-10 bg-indigo-600 text-white rounded-xl shadow-sm">
@@ -59,13 +55,6 @@ export function Header() {
             </button>
           </div>
 
-          <button 
-            onClick={() => setIsAddTravelerOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-          >
-            <Users size={16} />
-            Add Traveler
-          </button>
           <button onClick={exportJSON} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
             <Save size={16} />
             Save JSON
@@ -76,11 +65,5 @@ export function Header() {
           </button>
         </div>
       </header>
-
-      <AddTravelerModal 
-        isOpen={isAddTravelerOpen} 
-        onClose={() => setIsAddTravelerOpen(false)} 
-      />
-    </>
   );
 }
