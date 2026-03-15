@@ -47,12 +47,21 @@ export interface Traveler {
   segments: Segment[];
 }
 
+export interface Attraction {
+  id: string;
+  name: string;
+  link?: string;
+  addedBy: string; // traveler ID
+  votes: string[]; // traveler IDs who voted
+}
+
 export interface Itinerary {
   id: string;
   name: string;
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   travelers: Traveler[];
+  attractions?: Record<string, Attraction[]>; // keyed by cityName
 }
 
 export type SelectionType =

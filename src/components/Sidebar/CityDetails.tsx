@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Traveler, CitySegment, TransportSegment, Stay } from '../../types';
+import { Traveler, CitySegment, TransportSegment, Stay, Attraction } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
-import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink } from 'lucide-react';
+import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../../utils/cn';
@@ -225,6 +225,23 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         onAdd={addStay}
         onRemove={removeStay}
         onUpdate={updateStay}
+      />
+
+      {/* Attractions */}
+      <AttractionsSection
+        cityName={segment.cityName}
+        travelerId={traveler.id}
+        allTravelers={itinerary.travelers}
+        attractions={itinerary.attractions?.[segment.cityName] ?? []}
+        onUpdate={(newAttractions) => {
+          setItinerary(prev => ({
+            ...prev,
+            attractions: {
+              ...prev.attractions,
+              [segment.cityName]: newAttractions,
+            },
+          }));
+        }}
       />
 
       {coPresent.length > 0 && (
@@ -518,6 +535,218 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove }: Stay
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// --- Attractions Section Component ---
+
+interface AttractionsSectionProps {
+  cityName: string;
+  travelerId: string;
+  allTravelers: Traveler[];
+  attractions: Attraction[];
+  onUpdate: (newAttractions: Attraction[]) => void;
+}
+
+function AttractionsSection({ cityName, travelerId, allTravelers, attractions, onUpdate }: AttractionsSectionProps) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newLink, setNewLink] = useState('');
+
+  // Sort by votes descending
+  const sorted = [...attractions].sort((a, b) => b.votes.length - a.votes.length);
+  const topVotes = sorted.length > 0 ? sorted[0].votes.length : 0;
+
+  function handleAdd() {
+    if (!newName.trim()) return;
+    const attraction: Attraction = {
+      id: uuidv4(),
+      name: newName.trim(),
+      link: newLink.trim() || undefined,
+      addedBy: travelerId,
+      votes: [travelerId], // auto-vote by creator
+    };
+    onUpdate([...attractions, attraction]);
+    setNewName('');
+    setNewLink('');
+    setIsAdding(false);
+  }
+
+  function toggleVote(attractionId: string) {
+    onUpdate(attractions.map(a => {
+      if (a.id !== attractionId) return a;
+      const hasVoted = a.votes.includes(travelerId);
+      return {
+        ...a,
+        votes: hasVoted ? a.votes.filter(v => v !== travelerId) : [...a.votes, travelerId],
+      };
+    }));
+  }
+
+  function removeAttraction(attractionId: string) {
+    onUpdate(attractions.filter(a => a.id !== attractionId));
+  }
+
+  function getTravelerById(id: string) {
+    return allTravelers.find(t => t.id === id);
+  }
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+        <Star size={16} className="text-yellow-500" />
+        Attractions
+      </h4>
+
+      {sorted.length > 0 && (
+        <div className="space-y-2">
+          {sorted.map(attraction => {
+            const hasVoted = attraction.votes.includes(travelerId);
+            const isTop = attraction.votes.length === topVotes && topVotes > 0;
+            const addedByTraveler = getTravelerById(attraction.addedBy);
+            const isOwner = attraction.addedBy === travelerId;
+
+            return (
+              <div
+                key={attraction.id}
+                className={cn(
+                  "bg-white border rounded-lg p-3 shadow-sm space-y-2 transition-colors",
+                  isTop ? "border-yellow-300 bg-yellow-50/30" : "border-slate-200"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      {isTop && <Star size={12} className="text-yellow-500 shrink-0 fill-yellow-500" />}
+                      <span className="text-sm font-medium text-slate-800 truncate">{attraction.name}</span>
+                    </div>
+                    {attraction.link && (
+                      <a
+                        href={attraction.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-indigo-500 hover:text-indigo-700 flex items-center gap-1 mt-0.5 truncate"
+                      >
+                        <ExternalLink size={10} />
+                        <span className="truncate">{attraction.link}</span>
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => toggleVote(attraction.id)}
+                      className={cn(
+                        "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors",
+                        hasVoted
+                          ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      )}
+                      title={hasVoted ? "Remove vote" : "Vote"}
+                    >
+                      <ThumbsUp size={12} className={hasVoted ? "fill-indigo-600" : ""} />
+                      {attraction.votes.length}
+                    </button>
+                    {isOwner && (
+                      <button
+                        onClick={() => removeAttraction(attraction.id)}
+                        className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+                        title="Remove"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Voter avatars + added by */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    {attraction.votes.length > 0 && (
+                      <div className="flex -space-x-1">
+                        {attraction.votes.map(voterId => {
+                          const voter = getTravelerById(voterId);
+                          if (!voter) return null;
+                          return (
+                            <div
+                              key={voter.id}
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] text-white font-bold ring-1 ring-white"
+                              style={{ backgroundColor: voter.color }}
+                              title={voter.name}
+                            >
+                              {voter.name.substring(0, 2).toUpperCase()}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  {addedByTraveler && (
+                    <span className="text-[10px] text-slate-400">added by {addedByTraveler.name}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {isAdding ? (
+        <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-3 shadow-sm">
+          <input
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleAdd();
+              if (e.key === 'Escape') { setIsAdding(false); setNewName(''); setNewLink(''); }
+            }}
+            placeholder="Attraction name..."
+            className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
+            autoFocus
+          />
+          <input
+            type="url"
+            value={newLink}
+            onChange={e => setNewLink(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleAdd();
+              if (e.key === 'Escape') { setIsAdding(false); setNewName(''); setNewLink(''); }
+            }}
+            placeholder="Link (optional)"
+            className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
+          />
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleAdd}
+              disabled={!newName.trim()}
+              className={cn(
+                "flex-1 py-1.5 text-xs font-medium rounded-md transition-colors",
+                newName.trim()
+                  ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                  : "bg-slate-100 text-slate-400 cursor-not-allowed"
+              )}
+            >
+              Add
+            </button>
+            <button
+              onClick={() => { setIsAdding(false); setNewName(''); setNewLink(''); }}
+              className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsAdding(true)}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-medium text-yellow-600 bg-yellow-50/50 border border-dashed border-yellow-300 rounded-lg hover:bg-yellow-50 hover:border-yellow-400 transition-colors"
+        >
+          <Plus size={14} />
+          Add Attraction
+        </button>
       )}
     </div>
   );
