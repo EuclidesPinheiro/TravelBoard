@@ -90,6 +90,20 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
           segments.splice(insertIdx, 0, newSegment);
         }
 
+        // Connect empty transport before this city if it exists
+        const newCityIdx = segments.findIndex(s => s.id === newSegment.id);
+        if (newCityIdx > 0) {
+          const prevSeg = segments[newCityIdx - 1];
+          if (prevSeg.type === 'transport' && (prevSeg as any).to === '...') {
+            segments[newCityIdx - 1] = {
+              ...prevSeg,
+              to: cityName,
+              arrivalDate: startDate,
+              arrivalTime: '00:00',
+            };
+          }
+        }
+
         return { ...t, segments };
       }),
     }));
