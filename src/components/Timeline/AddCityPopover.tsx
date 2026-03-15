@@ -58,7 +58,7 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
 
   function addCity(cityName: string, country: string) {
     const startDate = format(date, 'yyyy-MM-dd');
-    const endDate = format(addDays(date, stayDays), 'yyyy-MM-dd');
+    const endDate = format(addDays(date, stayDays - 1), 'yyyy-MM-dd');
 
     // Ensure color is generated for new cities
     getCityColor(cityName);

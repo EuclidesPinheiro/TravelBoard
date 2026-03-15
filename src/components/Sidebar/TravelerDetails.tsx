@@ -11,7 +11,7 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
   const transports = traveler.segments.filter(s => s.type === 'transport') as TransportSegment[];
   
   const totalDays = cities.reduce((acc, city) => {
-    return acc + differenceInDays(parseISO(city.endDate), parseISO(city.startDate));
+    return acc + differenceInDays(parseISO(city.endDate), parseISO(city.startDate)) + 1;
   }, 0);
 
   return (
@@ -35,7 +35,7 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
           {traveler.segments.map((segment) => {
             if (segment.type === 'city') {
               const city = segment as CitySegment;
-              const days = differenceInDays(parseISO(city.endDate), parseISO(city.startDate));
+              const days = differenceInDays(parseISO(city.endDate), parseISO(city.startDate)) + 1;
               return (
                 <div key={segment.id} className="relative pl-4">
                   <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-2 border-slate-300" style={{ borderColor: traveler.color }} />

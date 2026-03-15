@@ -32,7 +32,7 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: Traveler
         const city = segment as CitySegment;
         const start = differenceInDays(startOfDay(parseISO(city.startDate)), itineraryStart);
         const end = differenceInDays(startOfDay(parseISO(city.endDate)), itineraryStart);
-        for (let d = start; d < end; d++) {
+        for (let d = start; d <= end; d++) {
           if (d >= 0 && d < days.length) occupied.add(d);
         }
       } else {
@@ -143,7 +143,7 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: Traveler
 
             // Find next transport
             const nextSeg = index < traveler.segments.length - 1 ? traveler.segments[index + 1] : null;
-            let endFraction = 0; // endDate is exclusive, so block ends at start of that day
+            let endFraction = 1; // endDate is inclusive, block extends through end of that day
             let endOffsetDays = differenceInDays(startOfDay(parseISO(citySeg.endDate)), itineraryStart);
 
             if (nextSeg && nextSeg.type === 'transport') {

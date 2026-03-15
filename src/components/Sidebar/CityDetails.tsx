@@ -24,7 +24,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
   const departureDate = nextTransport ? nextTransport.departureDate : segment.endDate;
   const departureTime = nextTransport ? nextTransport.departureTime : '';
 
-  const days = differenceInDays(parseISO(segment.endDate), parseISO(segment.startDate));
+  const days = differenceInDays(parseISO(segment.endDate), parseISO(segment.startDate)) + 1;
 
   // Build comparable datetime: "YYYY-MM-DD HH:mm" (or "YYYY-MM-DD" if no time)
   function toDateTime(date: string, time: string): string {
