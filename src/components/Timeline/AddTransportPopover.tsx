@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useItinerary } from '../../store/ItineraryContext';
 import { CitySegment, TransportMode } from '../../types';
+import { getCityColor } from '../../utils/cityColors';
 import { v4 as uuidv4 } from 'uuid';
-import { Plane, TrainFront, Ship, Footprints, Car } from 'lucide-react';
+import { Plane, TrainFront, Ship, Footprints, Car, Plus, Search } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const TRANSPORT_OPTIONS: { mode: TransportMode; label: string; icon: typeof Plane; color: string }[] = [
@@ -23,7 +24,7 @@ interface AddTransportPopoverProps {
 }
 
 export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCity, position, onClose }: AddTransportPopoverProps) {
-  const { setItinerary } = useItinerary();
+  const { itinerary, setItinerary } = useItinerary();
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const [mode, setMode] = useState<TransportMode>('flight');
@@ -31,6 +32,32 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
   const [departureTime, setDepartureTime] = useState('10:00');
   const [arrivalDate, setArrivalDate] = useState(nextCity?.startDate ?? segment.endDate);
   const [arrivalTime, setArrivalTime] = useState('12:00');
+
+  // Destination city state (only used when no nextCity)
+  const [destSearch, setDestSearch] = useState('');
+  const [selectedDest, setSelectedDest] = useState<{ name: string; country: string } | null>(null);
+
+  // Collect existing cities for destination picker
+  const existingCities = useMemo(() => {
+    const cities = new Map<string, string>();
+    for (const traveler of itinerary.travelers) {
+      for (const seg of traveler.segments) {
+        if (seg.type === 'city') {
+          const city = seg as CitySegment;
+          if (!cities.has(city.cityName)) {
+            cities.set(city.cityName, city.country);
+          }
+        }
+      }
+    }
+    return Array.from(cities.entries()).map(([name, country]) => ({ name, country }));
+  }, [itinerary]);
+
+  const filteredCities = destSearch.trim()
+    ? existingCities.filter(c => c.name.toLowerCase().includes(destSearch.toLowerCase()))
+    : existingCities;
+
+  const isNewCity = destSearch.trim() !== '' && !existingCities.some(c => c.name.toLowerCase() === destSearch.toLowerCase());
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -42,17 +69,23 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
+  function selectDest(name: string, country: string) {
+    getCityColor(name);
+    setSelectedDest({ name, country });
+    setDestSearch('');
+  }
+
   function handleSubmit() {
-    const toCity = nextCity ? nextCity.cityName : '...';
-    const finalArrivalDate = nextCity ? arrivalDate : departureDate;
-    const finalArrivalTime = nextCity ? arrivalTime : departureTime;
+    const toName = nextCity ? nextCity.cityName : (selectedDest?.name ?? '...');
+    const finalArrivalDate = (nextCity || selectedDest) ? arrivalDate : departureDate;
+    const finalArrivalTime = (nextCity || selectedDest) ? arrivalTime : departureTime;
 
     const transportSegment = {
       type: 'transport' as const,
       id: uuidv4(),
       mode,
       from: segment.cityName,
-      to: toCity,
+      to: toName,
       departureDate,
       departureTime,
       arrivalDate: finalArrivalDate,
@@ -80,6 +113,19 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
         // Insert transport after current city
         segments.splice(segmentIndex + 1, 0, transportSegment);
 
+        // If a destination city was selected/created (no nextCity), insert it after transport
+        if (!nextCity && selectedDest) {
+          const newCity: CitySegment = {
+            type: 'city',
+            id: uuidv4(),
+            cityName: selectedDest.name,
+            country: selectedDest.country,
+            startDate: finalArrivalDate,
+            endDate: finalArrivalDate,
+          };
+          segments.splice(segmentIndex + 2, 0, newCity);
+        }
+
         return { ...t, segments };
       }),
     }));
@@ -87,10 +133,11 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
     onClose();
   }
 
-  // Validate: departure <= arrival when next city exists
+  // Validate: departure <= arrival
   const depDt = `${departureDate}T${departureTime}`;
   const arrDt = `${arrivalDate}T${arrivalTime}`;
-  const isValid = !nextCity || depDt <= arrDt;
+  const hasArrival = nextCity || selectedDest;
+  const isValid = !hasArrival || depDt <= arrDt;
 
   return (
     <div
@@ -155,7 +202,7 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
         </div>
       </div>
 
-      {/* Arrival — only if next city exists */}
+      {/* Arrival — when next city exists */}
       {nextCity && (
         <div className="px-4 py-3 space-y-2 border-b border-slate-100">
           <div className="text-xs font-medium text-slate-700">
@@ -176,6 +223,102 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
               className="w-[90px] text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
             />
           </div>
+        </div>
+      )}
+
+      {/* Destination picker — when no next city */}
+      {!nextCity && (
+        <div className="border-b border-slate-100">
+          <div className="px-4 pt-3 pb-2">
+            <div className="text-xs font-medium text-slate-700 mb-2">Destination (optional)</div>
+
+            {selectedDest ? (
+              <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
+                <div
+                  className="w-5 h-5 rounded-full shrink-0"
+                  style={{ backgroundColor: `${getCityColor(selectedDest.name)}30`, border: `2px solid ${getCityColor(selectedDest.name)}` }}
+                />
+                <span className="text-sm font-medium text-slate-700 flex-1">{selectedDest.name}</span>
+                <button
+                  onClick={() => setSelectedDest(null)}
+                  className="text-xs text-slate-400 hover:text-red-500 transition-colors"
+                >
+                  change
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2.5 py-1.5">
+                <Search size={14} className="text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  value={destSearch}
+                  onChange={e => setDestSearch(e.target.value)}
+                  placeholder="Search or add city..."
+                  className="bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none w-full"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* City list — only when searching and no dest selected */}
+          {!selectedDest && (destSearch.trim() || existingCities.length > 0) && (
+            <div className="max-h-32 overflow-y-auto pb-1">
+              {isNewCity && (
+                <button
+                  className="w-full flex items-center gap-2.5 px-4 py-1.5 hover:bg-indigo-50 transition-colors text-left"
+                  onClick={() => selectDest(destSearch.trim(), '')}
+                >
+                  <div className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                    <Plus size={10} strokeWidth={3} />
+                  </div>
+                  <span className="text-xs text-slate-700">
+                    Add <span className="font-semibold">"{destSearch.trim()}"</span>
+                  </span>
+                </button>
+              )}
+              {filteredCities.map(city => {
+                const color = getCityColor(city.name);
+                return (
+                  <button
+                    key={city.name}
+                    className="w-full flex items-center gap-2.5 px-4 py-1.5 hover:bg-slate-50 transition-colors text-left"
+                    onClick={() => selectDest(city.name, city.country)}
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full shrink-0"
+                      style={{ backgroundColor: `${color}30`, border: `2px solid ${color}` }}
+                    />
+                    <span className="text-xs text-slate-700">{city.name}</span>
+                    {city.country && <span className="text-[10px] text-slate-400 ml-auto">{city.country}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Arrival date/time — only when dest is selected */}
+          {selectedDest && (
+            <div className="px-4 pb-3 pt-2 space-y-2">
+              <div className="text-xs font-medium text-slate-700">
+                Arrival in <span className="text-indigo-600">{selectedDest.name}</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  value={arrivalDate}
+                  min={departureDate}
+                  onChange={e => setArrivalDate(e.target.value)}
+                  className="flex-1 text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                />
+                <input
+                  type="time"
+                  value={arrivalTime}
+                  onChange={e => setArrivalTime(e.target.value)}
+                  className="w-[90px] text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
