@@ -1,8 +1,12 @@
 import { Traveler, CitySegment, TransportSegment } from '../../types';
-import { Navigation, Calendar } from 'lucide-react';
+import { useItinerary } from '../../store/ItineraryContext';
+import { Navigation, Calendar, Trash2 } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
+import { useState } from 'react';
 
 export function TravelerDetails({ traveler }: { traveler: Traveler }) {
+  const { setItinerary, setSelection } = useItinerary();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const cities = traveler.segments.filter(s => s.type === 'city') as CitySegment[];
   const transports = traveler.segments.filter(s => s.type === 'transport') as TransportSegment[];
   
@@ -61,6 +65,40 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
       <button className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg text-sm transition-colors">
         Edit Traveler
       </button>
+
+      {!confirmDelete ? (
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="w-full py-2 px-4 bg-white border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+        >
+          <Trash2 size={14} />
+          Delete Traveler
+        </button>
+      ) : (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
+          <p className="text-xs text-red-700 font-medium">Remove {traveler.name} and all their cities/transports?</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setItinerary(prev => ({
+                  ...prev,
+                  travelers: prev.travelers.filter(t => t.id !== traveler.id),
+                }));
+                setSelection(null);
+              }}
+              className="flex-1 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md text-xs transition-colors"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="flex-1 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium rounded-md text-xs transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
