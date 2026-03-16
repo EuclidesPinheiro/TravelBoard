@@ -60,9 +60,35 @@ function useUndoRedo() {
   }, [undo, redo]);
 }
 
+function useClickOutsideDeselect() {
+  const { selection, setSelection } = useItinerary();
+
+  useEffect(() => {
+    if (!selection) return;
+
+    function handleMouseDown(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      // Don't deselect if clicking inside sidebar, a popover, a city block, transport connector, or the "+" button
+      if (
+        target.closest('[data-sidebar]') ||
+        target.closest('[data-popover]') ||
+        target.closest('[data-city-block]') ||
+        target.closest('[data-transport-connector]') ||
+        target.closest('[data-add-transport-btn]') ||
+        target.closest('[data-traveler-info]')
+      ) return;
+      setSelection(null);
+    }
+
+    window.addEventListener('mousedown', handleMouseDown);
+    return () => window.removeEventListener('mousedown', handleMouseDown);
+  }, [selection, setSelection]);
+}
+
 function AppContent() {
   useDeleteSelection();
   useUndoRedo();
+  useClickOutsideDeselect();
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { Itinerary, SelectionType } from '../types';
+import { Itinerary, SelectionType, CitySegment } from '../types';
 import { initialItinerary } from '../data/initialData';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -32,6 +32,45 @@ function deepCloneItinerary(it: Itinerary): Itinerary {
     if (key === 'id') return uuidv4();
     return value;
   }));
+}
+
+function cleanupOrphanedCityData(it: Itinerary): Itinerary {
+  const activeCities = new Set<string>();
+  for (const t of it.travelers) {
+    for (const seg of t.segments) {
+      if (seg.type === 'city') activeCities.add((seg as CitySegment).cityName);
+    }
+  }
+
+  let changed = false;
+
+  let attractions = it.attractions;
+  if (attractions) {
+    for (const city of Object.keys(attractions)) {
+      if (!activeCities.has(city)) { changed = true; break; }
+    }
+    if (changed) {
+      attractions = Object.fromEntries(
+        Object.entries(attractions).filter(([city]) => activeCities.has(city))
+      );
+    }
+  }
+
+  let checklists = it.checklists;
+  if (checklists) {
+    let clChanged = false;
+    for (const city of Object.keys(checklists)) {
+      if (!activeCities.has(city)) { clChanged = true; break; }
+    }
+    if (clChanged) {
+      checklists = Object.fromEntries(
+        Object.entries(checklists).filter(([city]) => activeCities.has(city))
+      );
+      changed = true;
+    }
+  }
+
+  return changed ? { ...it, attractions, checklists } : it;
 }
 
 interface UndoEntry {
@@ -103,7 +142,8 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
         setUndoRedoVersion(v => v + 1);
       }
       const updated = [...prev];
-      updated[safeIndex] = typeof action === 'function' ? action(prev[safeIndex]) : action;
+      let newItinerary = typeof action === 'function' ? action(prev[safeIndex]) : action;
+      updated[safeIndex] = cleanupOrphanedCityData(newItinerary);
       return updated;
     });
   }, [safeIndex]);

@@ -123,6 +123,7 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay, onReorderS
         </div>
         {/* Details button */}
         <button
+          data-traveler-info
           className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-slate-100 hover:bg-indigo-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
           onClick={(e) => {
             e.stopPropagation();

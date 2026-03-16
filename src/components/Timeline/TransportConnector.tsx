@@ -40,6 +40,7 @@ export function TransportConnector({ segment, traveler, left, width }: Transport
 
       {/* The connector block */}
       <div
+        data-transport-connector
         className={cn(
           "absolute top-1/2 -translate-y-1/2 left-0 right-0 h-4 rounded-sm border-2 border-slate-800 flex items-center justify-center cursor-pointer transition-all hover:shadow-md hover:scale-110",
           isSelected ? "ring-2 ring-offset-1 ring-slate-800" : "shadow-sm"

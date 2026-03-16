@@ -6,7 +6,7 @@ import { getCityColor } from '../../utils/cityColors';
 import { cn } from '../../utils/cn';
 import { Home, Plus } from 'lucide-react';
 import { AddTransportPopover } from './AddTransportPopover';
-import { addDays, parseISO, format } from 'date-fns';
+import { addDays, parseISO, format, differenceInDays, startOfDay } from 'date-fns';
 
 interface CityBlockProps {
   key?: string;
@@ -166,6 +166,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     <>
       <div
         ref={blockRef}
+        data-city-block
         className={cn(
           "absolute top-1/2 -translate-y-1/2 h-10 rounded-md shadow-sm border flex items-center justify-center cursor-pointer transition-shadow hover:shadow-md hover:z-10 overflow-hidden group",
           isSelected ? "ring-2 ring-indigo-500 z-10" : "border-slate-200/60",
@@ -209,6 +210,56 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         </span>
       </div>
 
+      {/* Accommodation stay bars below the city block */}
+      {hasStays && !isDragging && (() => {
+        const cityStart = startOfDay(parseISO(segment.startDate));
+        const cityEnd = startOfDay(parseISO(segment.endDate));
+        const totalDays = differenceInDays(cityEnd, cityStart) + 1;
+        if (totalDays <= 0) return null;
+
+        return (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: `${visualLeft}px`,
+              width: `${visualWidth}px`,
+              top: 'calc(50% + 22px)',
+              height: '14px',
+            }}
+          >
+            {segment.stays!.map(stay => {
+              const stayStart = startOfDay(parseISO(stay.checkInDate));
+              const stayEnd = startOfDay(parseISO(stay.checkOutDate));
+              const offsetDays = Math.max(0, differenceInDays(stayStart, cityStart));
+              const stayDays = Math.max(1, Math.min(
+                differenceInDays(stayEnd, stayStart) + 1,
+                totalDays - offsetDays
+              ));
+
+              const stayLeftPct = (offsetDays / totalDays) * 100;
+              const stayWidthPct = (stayDays / totalDays) * 100;
+
+              return (
+                <div
+                  key={stay.id}
+                  className="absolute h-full rounded-sm flex items-center overflow-hidden"
+                  style={{
+                    left: `${stayLeftPct}%`,
+                    width: `${stayWidthPct}%`,
+                    backgroundColor: `${cityColor}25`,
+                    borderBottom: `2px solid ${cityColor}90`,
+                  }}
+                >
+                  <span className="text-[7px] font-medium truncate px-0.5 whitespace-nowrap leading-none" style={{ color: `${cityColor}` }}>
+                    {stay.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Date preview tooltip — portal to body to escape overflow clipping */}
       {isDragging && previewLabel && blockRect && createPortal(
         <div
@@ -227,6 +278,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
       {/* Add Transport "+" button — shown when selected and no transport after */}
       {isSelected && !hasTransportAfter && !isDragging && (
         <div
+          data-add-transport-btn
           className="absolute top-1/2 -translate-y-1/2 z-30 cursor-pointer"
           style={{ left: `${left + width + 2}px` }}
           onClick={handleAddTransportClick}

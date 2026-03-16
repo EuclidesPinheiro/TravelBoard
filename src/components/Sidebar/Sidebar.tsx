@@ -13,7 +13,7 @@ export function Sidebar() {
   if (!traveler) return null;
 
   return (
-    <div className="w-80 shrink-0 bg-white border-l border-slate-200 shadow-xl flex flex-col h-full z-30 animate-in slide-in-from-right-8 duration-200">
+    <div data-sidebar className="w-80 shrink-0 bg-white border-l border-slate-200 shadow-xl flex flex-col h-full z-30 animate-in slide-in-from-right-8 duration-200">
       <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100 shrink-0">
         <h2 className="font-semibold text-slate-800">Details</h2>
         <button 

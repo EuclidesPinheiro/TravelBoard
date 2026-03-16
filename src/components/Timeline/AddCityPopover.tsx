@@ -121,6 +121,7 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
   return (
     <div
       ref={popoverRef}
+      data-popover
       className="fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 w-72 overflow-hidden"
       style={{ left: position.x, top: position.y }}
     >
