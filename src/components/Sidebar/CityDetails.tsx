@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
-import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare } from 'lucide-react';
+import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../../utils/cn';
@@ -533,8 +533,168 @@ interface StayCardProps {
 
 function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpdate }: StayCardProps) {
   const sharedTravelers = otherTravelers.filter(t => stay.sharedWith.includes(t.id));
-  const splitCount = 1 + stay.sharedWith.length; // owner + shared
+  const splitCount = 1 + stay.sharedWith.length;
   const perPerson = stay.cost ? stay.cost / splitCount : 0;
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(stay.name);
+  const [editLink, setEditLink] = useState(stay.link ?? '');
+  const [editCheckInDate, setEditCheckInDate] = useState(stay.checkInDate);
+  const [editCheckInTime, setEditCheckInTime] = useState(stay.checkInTime);
+  const [editCheckOutDate, setEditCheckOutDate] = useState(stay.checkOutDate);
+  const [editCheckOutTime, setEditCheckOutTime] = useState(stay.checkOutTime);
+  const [editCost, setEditCost] = useState(stay.cost?.toString() ?? '');
+  const [editSharedWith, setEditSharedWith] = useState<string[]>(stay.sharedWith);
+
+  function startEdit() {
+    setEditName(stay.name);
+    setEditLink(stay.link ?? '');
+    setEditCheckInDate(stay.checkInDate);
+    setEditCheckInTime(stay.checkInTime);
+    setEditCheckOutDate(stay.checkOutDate);
+    setEditCheckOutTime(stay.checkOutTime);
+    setEditCost(stay.cost?.toString() ?? '');
+    setEditSharedWith([...stay.sharedWith]);
+    setIsEditing(true);
+  }
+
+  function handleSave() {
+    if (!editName.trim()) return;
+    const checkInDt = `${editCheckInDate}T${editCheckInTime}`;
+    const checkOutDt = `${editCheckOutDate}T${editCheckOutTime}`;
+    if (checkInDt > checkOutDt) return;
+    if (checkInDt < cityMinDt || checkOutDt > cityMaxDt) return;
+
+    const parsedCost = parseFloat(editCost);
+    onUpdate(s => ({
+      ...s,
+      name: editName.trim(),
+      link: editLink.trim() || undefined,
+      checkInDate: editCheckInDate,
+      checkInTime: editCheckInTime,
+      checkOutDate: editCheckOutDate,
+      checkOutTime: editCheckOutTime,
+      cost: !isNaN(parsedCost) && parsedCost > 0 ? parsedCost : undefined,
+      sharedWith: editSharedWith,
+    }));
+    setIsEditing(false);
+  }
+
+  const editCheckInDt = `${editCheckInDate}T${editCheckInTime}`;
+  const editCheckOutDt = `${editCheckOutDate}T${editCheckOutTime}`;
+  const isEditValid = editName.trim() !== '' && editCheckInDt <= editCheckOutDt && editCheckInDt >= cityMinDt && editCheckOutDt <= cityMaxDt;
+
+  function toggleEditShared(travelerId: string) {
+    setEditSharedWith(prev =>
+      prev.includes(travelerId) ? prev.filter(id => id !== travelerId) : [...prev, travelerId]
+    );
+  }
+
+  if (isEditing) {
+    return (
+      <div className="bg-white border border-indigo-200 rounded-lg p-3 space-y-3 shadow-sm ring-1 ring-indigo-100">
+        <input
+          type="text"
+          value={editName}
+          onChange={e => setEditName(e.target.value)}
+          placeholder="Accommodation name..."
+          className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
+          autoFocus
+        />
+        <input
+          type="url"
+          value={editLink}
+          onChange={e => setEditLink(e.target.value)}
+          placeholder="Link (optional)"
+          className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
+        />
+
+        <div>
+          <div className="text-xs text-slate-500 mb-1">Check-in</div>
+          <div className="flex gap-2">
+            <input type="date" value={editCheckInDate} min={cityMinDt.slice(0, 10)} max={cityMaxDt.slice(0, 10)} onChange={e => setEditCheckInDate(e.target.value)} className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+            <input type="time" value={editCheckInTime} onChange={e => setEditCheckInTime(e.target.value)} className="w-[80px] text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs text-slate-500 mb-1">Check-out</div>
+          <div className="flex gap-2">
+            <input type="date" value={editCheckOutDate} min={editCheckInDate} max={cityMaxDt.slice(0, 10)} onChange={e => setEditCheckOutDate(e.target.value)} className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+            <input type="time" value={editCheckOutTime} onChange={e => setEditCheckOutTime(e.target.value)} className="w-[80px] text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs text-slate-500 mb-1">Cost (total)</div>
+          <div className="relative">
+            <DollarSign size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="number"
+              value={editCost}
+              onChange={e => setEditCost(e.target.value)}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md pl-6 pr-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
+            />
+          </div>
+        </div>
+
+        {otherTravelers.length > 0 && (
+          <div>
+            <div className="text-xs text-slate-500 mb-1.5">Shared with</div>
+            <div className="flex flex-wrap gap-1.5">
+              {otherTravelers.map(t => {
+                const selected = editSharedWith.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => toggleEditShared(t.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-colors border",
+                      selected
+                        ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                        : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                    )}
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] text-white font-bold"
+                      style={{ backgroundColor: t.color }}
+                    >
+                      {t.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={handleSave}
+            disabled={!isEditValid}
+            className={cn(
+              "flex-1 py-1.5 text-xs font-medium rounded-md transition-colors",
+              isEditValid
+                ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed"
+            )}
+          >
+            Save
+          </button>
+          <button
+            onClick={() => setIsEditing(false)}
+            className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm space-y-2">
@@ -553,13 +713,22 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpda
             </a>
           )}
         </div>
-        <button
-          onClick={onRemove}
-          className="p-1 text-slate-300 hover:text-red-500 transition-colors shrink-0"
-          title="Remove"
-        >
-          <Trash2 size={12} />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={startEdit}
+            className="p-1 text-slate-300 hover:text-indigo-500 transition-colors"
+            title="Edit"
+          >
+            <Pencil size={12} />
+          </button>
+          <button
+            onClick={onRemove}
+            className="p-1 text-slate-300 hover:text-red-500 transition-colors"
+            title="Remove"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-3 text-xs text-slate-600">
