@@ -237,7 +237,7 @@ export function BudgetReport() {
   }
 
   return (
-    <div className="bg-slate-50 px-6 py-4">
+    <div className="bg-slate-50 px-6 py-4 max-h-[45vh] overflow-y-auto">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           {highlightedTraveler && (

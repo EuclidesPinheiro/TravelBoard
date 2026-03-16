@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Traveler, CitySegment, TransportSegment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
@@ -24,9 +24,18 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay, onReorderS
   const { itinerary, zoomLevel, setSelection, selection, highlightedTravelerId, setHighlightedTravelerId } = useItinerary();
   const itineraryStart = startOfDay(parseISO(itinerary.startDate));
   const [popover, setPopover] = useState<{ dayIndex: number; x: number; y: number } | null>(null);
+  const wasDraggingRef = useRef(false);
 
   const isHighlighted = highlightedTravelerId === traveler.id;
   const isDimmed = highlightedTravelerId !== null && highlightedTravelerId !== traveler.id;
+
+  // Track when drag ends to suppress the click that follows
+  const prevIsDragging = useRef(isDragging);
+  if (prevIsDragging.current && !isDragging) {
+    wasDraggingRef.current = true;
+    setTimeout(() => { wasDraggingRef.current = false; }, 0);
+  }
+  prevIsDragging.current = isDragging;
 
   // Compute which day indices are occupied by a segment
   const occupiedDays = useMemo(() => {
@@ -62,6 +71,7 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay, onReorderS
   }
 
   function handleRowClick() {
+    if (wasDraggingRef.current) return;
     if (isHighlighted) {
       setHighlightedTravelerId(null);
     } else {

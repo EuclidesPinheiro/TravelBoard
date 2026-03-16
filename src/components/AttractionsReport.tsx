@@ -116,7 +116,7 @@ export function AttractionsReport() {
   }
 
   return (
-    <div className="bg-slate-50 px-6 py-4 space-y-4">
+    <div className="bg-slate-50 px-6 py-4 space-y-4 max-h-[45vh] overflow-y-auto">
       {/* Filters bar */}
       <div className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">

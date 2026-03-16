@@ -107,7 +107,7 @@ export function CityReport() {
   if (cityData.length === 0) return null;
 
   return (
-    <div className="bg-slate-50 px-6 py-4">
+    <div className="bg-slate-50 px-6 py-4 max-h-[45vh] overflow-y-auto">
       {highlightedTraveler && (
         <p className="text-xs font-medium text-slate-400 mb-3">
           Showing: {highlightedTraveler.name}

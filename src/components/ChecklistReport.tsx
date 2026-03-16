@@ -68,7 +68,7 @@ export function ChecklistReport() {
   }
 
   return (
-    <div className="px-6 py-4 max-h-64 overflow-y-auto space-y-4">
+    <div className="px-6 py-4 max-h-[45vh] overflow-y-auto space-y-4">
       {/* Global progress */}
       <div className="flex items-center gap-3">
         <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
