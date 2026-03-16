@@ -61,6 +61,13 @@ export interface Attraction {
   cost?: number;
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  addedBy: string; // traveler ID
+  completedBy: string[]; // traveler IDs who marked it done
+}
+
 export interface Itinerary {
   id: string;
   name: string;
@@ -68,6 +75,7 @@ export interface Itinerary {
   endDate: string; // YYYY-MM-DD
   travelers: Traveler[];
   attractions?: Record<string, Attraction[]>; // keyed by cityName
+  checklists?: Record<string, ChecklistItem[]>; // keyed by cityName
 }
 
 export type SelectionType =

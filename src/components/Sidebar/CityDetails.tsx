@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory } from '../../types';
+import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
-import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign } from 'lucide-react';
+import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../../utils/cn';
@@ -239,6 +239,23 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
             attractions: {
               ...prev.attractions,
               [segment.cityName]: newAttractions,
+            },
+          }));
+        }}
+      />
+
+      {/* Checklist */}
+      <ChecklistSection
+        cityName={segment.cityName}
+        travelerId={traveler.id}
+        allTravelers={itinerary.travelers}
+        items={itinerary.checklists?.[segment.cityName] ?? []}
+        onUpdate={(newItems) => {
+          setItinerary(prev => ({
+            ...prev,
+            checklists: {
+              ...prev.checklists,
+              [segment.cityName]: newItems,
             },
           }));
         }}
@@ -864,6 +881,192 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
         >
           <Plus size={14} />
           Add Attraction
+        </button>
+      )}
+    </div>
+  );
+}
+
+// --- Checklist Section Component ---
+
+interface ChecklistSectionProps {
+  cityName: string;
+  travelerId: string;
+  allTravelers: Traveler[];
+  items: ChecklistItem[];
+  onUpdate: (newItems: ChecklistItem[]) => void;
+}
+
+function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate }: ChecklistSectionProps) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [newText, setNewText] = useState('');
+
+  function handleAdd() {
+    if (!newText.trim()) return;
+    const item: ChecklistItem = {
+      id: uuidv4(),
+      text: newText.trim(),
+      addedBy: travelerId,
+      completedBy: [],
+    };
+    onUpdate([...items, item]);
+    setNewText('');
+  }
+
+  function toggleComplete(itemId: string) {
+    onUpdate(items.map(item => {
+      if (item.id !== itemId) return item;
+      const done = item.completedBy.includes(travelerId);
+      return {
+        ...item,
+        completedBy: done
+          ? item.completedBy.filter(id => id !== travelerId)
+          : [...item.completedBy, travelerId],
+      };
+    }));
+  }
+
+  function removeItem(itemId: string) {
+    onUpdate(items.filter(item => item.id !== itemId));
+  }
+
+  function getTravelerById(id: string) {
+    return allTravelers.find(t => t.id === id);
+  }
+
+  const doneCount = items.filter(item => item.completedBy.includes(travelerId)).length;
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+        <ListChecks size={16} className="text-teal-500" />
+        Checklist
+        {items.length > 0 && (
+          <span className="text-[10px] font-medium text-slate-400 ml-auto">
+            {doneCount}/{items.length}
+          </span>
+        )}
+      </h4>
+
+      {/* Progress bar */}
+      {items.length > 0 && (
+        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-teal-400 rounded-full transition-all"
+            style={{ width: `${(doneCount / items.length) * 100}%` }}
+          />
+        </div>
+      )}
+
+      {/* Items */}
+      {items.length > 0 && (
+        <div className="space-y-1">
+          {items.map(item => {
+            const isDone = item.completedBy.includes(travelerId);
+            const addedByTraveler = getTravelerById(item.addedBy);
+            const isOwner = item.addedBy === travelerId;
+            const completedTravelers = item.completedBy
+              .map(id => getTravelerById(id))
+              .filter(Boolean) as Traveler[];
+
+            return (
+              <div
+                key={item.id}
+                className={cn(
+                  "flex items-start gap-2 p-2 rounded-lg transition-colors group",
+                  isDone ? "bg-teal-50/50" : "hover:bg-slate-50"
+                )}
+              >
+                <button
+                  onClick={() => toggleComplete(item.id)}
+                  className="mt-0.5 shrink-0 text-slate-400 hover:text-teal-500 transition-colors"
+                >
+                  {isDone
+                    ? <CheckSquare size={16} className="text-teal-500" />
+                    : <Square size={16} />
+                  }
+                </button>
+
+                <div className="flex-1 min-w-0">
+                  <span className={cn(
+                    "text-sm",
+                    isDone ? "text-slate-400 line-through" : "text-slate-700"
+                  )}>
+                    {item.text}
+                  </span>
+
+                  <div className="flex items-center gap-2 mt-1">
+                    {/* Who completed */}
+                    {completedTravelers.length > 0 && (
+                      <div className="flex -space-x-1">
+                        {completedTravelers.map(t => (
+                          <div
+                            key={t.id}
+                            className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] text-white font-bold ring-1 ring-white"
+                            style={{ backgroundColor: t.color }}
+                            title={`${t.name} (done)`}
+                          >
+                            {t.name.substring(0, 2).toUpperCase()}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {addedByTraveler && (
+                      <span className="text-[10px] text-slate-400">by {addedByTraveler.name}</span>
+                    )}
+                  </div>
+                </div>
+
+                {isOwner && (
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    className="p-0.5 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                    title="Remove"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add form */}
+      {isAdding ? (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newText}
+            onChange={e => setNewText(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleAdd();
+              if (e.key === 'Escape') { setIsAdding(false); setNewText(''); }
+            }}
+            placeholder="Task description..."
+            className="flex-1 text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400 placeholder-slate-400"
+            autoFocus
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!newText.trim()}
+            className={cn(
+              "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+              newText.trim()
+                ? "bg-teal-600 hover:bg-teal-700 text-white"
+                : "bg-slate-100 text-slate-400 cursor-not-allowed"
+            )}
+          >
+            Add
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setIsAdding(true)}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-medium text-teal-500 bg-teal-50/50 border border-dashed border-teal-200 rounded-lg hover:bg-teal-50 hover:border-teal-300 transition-colors"
+        >
+          <Plus size={14} />
+          Add Task
         </button>
       )}
     </div>
