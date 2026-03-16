@@ -16,7 +16,7 @@ interface AddCityPopoverProps {
 export function AddCityPopover({ travelerId, date, position, onClose }: AddCityPopoverProps) {
   const { itinerary, setItinerary } = useItinerary();
   const [search, setSearch] = useState('');
-  const [stayDays, setStayDays] = useState(2);
+  const [stayDays, setStayDays] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 

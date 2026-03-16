@@ -105,7 +105,7 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: Traveler
       </div>
 
       {/* Timeline Area */}
-      <div className="flex relative" style={{ width: days.length * zoomLevel }}>
+      <div className="flex relative isolate overflow-x-clip" style={{ width: days.length * zoomLevel }}>
         {/* Background Grid Lines — clickable on empty cells */}
         {days.map((day, i) => {
           const isEmpty = !occupiedDays.has(i);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Traveler, CitySegment, TransportSegment, Stay, Attraction } from '../../types';
+import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
@@ -550,14 +550,29 @@ interface AttractionsSectionProps {
   onUpdate: (newAttractions: Attraction[]) => void;
 }
 
+const CATEGORY_CONFIG: Record<AttractionCategory, { label: string; color: string; bg: string; border: string }> = {
+  museum:  { label: 'Museu e Arquitetura',  color: '#8B5CF6', bg: 'bg-violet-50',  border: 'border-violet-300' },
+  science: { label: 'Ciência e Tecnologia', color: '#0EA5E9', bg: 'bg-sky-50',     border: 'border-sky-300' },
+  nature:  { label: 'Natureza',             color: '#22C55E', bg: 'bg-green-50',   border: 'border-green-300' },
+  yolo:    { label: 'YOLO',                 color: '#F97316', bg: 'bg-orange-50',  border: 'border-orange-300' },
+};
+
 function AttractionsSection({ cityName, travelerId, allTravelers, attractions, onUpdate }: AttractionsSectionProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newLink, setNewLink] = useState('');
+  const [newCategory, setNewCategory] = useState<AttractionCategory>('museum');
 
   // Sort by votes descending
   const sorted = [...attractions].sort((a, b) => b.votes.length - a.votes.length);
   const topVotes = sorted.length > 0 ? sorted[0].votes.length : 0;
+
+  function resetForm() {
+    setNewName('');
+    setNewLink('');
+    setNewCategory('museum');
+    setIsAdding(false);
+  }
 
   function handleAdd() {
     if (!newName.trim()) return;
@@ -565,13 +580,12 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
       id: uuidv4(),
       name: newName.trim(),
       link: newLink.trim() || undefined,
+      category: newCategory,
       addedBy: travelerId,
       votes: [travelerId], // auto-vote by creator
     };
     onUpdate([...attractions, attraction]);
-    setNewName('');
-    setNewLink('');
-    setIsAdding(false);
+    resetForm();
   }
 
   function toggleVote(attractionId: string) {
@@ -607,6 +621,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
             const isTop = attraction.votes.length === topVotes && topVotes > 0;
             const addedByTraveler = getTravelerById(attraction.addedBy);
             const isOwner = attraction.addedBy === travelerId;
+            const catConfig = CATEGORY_CONFIG[attraction.category] ?? CATEGORY_CONFIG.museum;
 
             return (
               <div
@@ -621,6 +636,14 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
                     <div className="flex items-center gap-1.5">
                       {isTop && <Star size={12} className="text-yellow-500 shrink-0 fill-yellow-500" />}
                       <span className="text-sm font-medium text-slate-800 truncate">{attraction.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                        style={{ backgroundColor: `${catConfig.color}18`, color: catConfig.color }}
+                      >
+                        {catConfig.label}
+                      </span>
                     </div>
                     {attraction.link && (
                       <a
@@ -701,7 +724,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
             onChange={e => setNewName(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter') handleAdd();
-              if (e.key === 'Escape') { setIsAdding(false); setNewName(''); setNewLink(''); }
+              if (e.key === 'Escape') resetForm();
             }}
             placeholder="Attraction name..."
             className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
@@ -713,11 +736,35 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
             onChange={e => setNewLink(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter') handleAdd();
-              if (e.key === 'Escape') { setIsAdding(false); setNewName(''); setNewLink(''); }
+              if (e.key === 'Escape') resetForm();
             }}
             placeholder="Link (optional)"
             className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
           />
+
+          {/* Category selector */}
+          <div>
+            <div className="text-xs text-slate-500 mb-1.5">Category</div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(Object.entries(CATEGORY_CONFIG) as [AttractionCategory, typeof CATEGORY_CONFIG[AttractionCategory]][]).map(([key, cfg]) => (
+                <button
+                  key={key}
+                  onClick={() => setNewCategory(key)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors border",
+                    newCategory === key
+                      ? cfg.border + " " + cfg.bg
+                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                  )}
+                  style={newCategory === key ? { color: cfg.color } : undefined}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
+                  {cfg.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex gap-2 pt-1">
             <button
               onClick={handleAdd}
@@ -732,7 +779,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
               Add
             </button>
             <button
-              onClick={() => { setIsAdding(false); setNewName(''); setNewLink(''); }}
+              onClick={resetForm}
               className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
             >
               Cancel

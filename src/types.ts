@@ -47,10 +47,13 @@ export interface Traveler {
   segments: Segment[];
 }
 
+export type AttractionCategory = 'museum' | 'science' | 'nature' | 'yolo';
+
 export interface Attraction {
   id: string;
   name: string;
   link?: string;
+  category: AttractionCategory;
   addedBy: string; // traveler ID
   votes: string[]; // traveler IDs who voted
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CitySegment, Traveler } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { getCityColor } from '../../utils/cityColors';
@@ -66,7 +67,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
       {/* Add Transport "+" button — shown when selected and no transport after */}
       {isSelected && !hasTransportAfter && (
         <div
-          className="absolute top-1/2 -translate-y-1/2 z-20 cursor-pointer"
+          className="absolute top-1/2 -translate-y-1/2 z-30 cursor-pointer"
           style={{ left: `${left + width + 2}px` }}
           onClick={handleAddTransportClick}
           title="Add transport"
@@ -77,8 +78,8 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         </div>
       )}
 
-      {/* Transport Popover */}
-      {transportPopover && (
+      {/* Transport Popover — portal to body to escape isolate stacking context */}
+      {transportPopover && createPortal(
         <AddTransportPopover
           travelerId={traveler.id}
           segment={segment}
@@ -86,7 +87,8 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
           nextCity={nextCity ?? null}
           position={transportPopover}
           onClose={() => setTransportPopover(null)}
-        />
+        />,
+        document.body
       )}
     </>
   );
