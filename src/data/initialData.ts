@@ -6,7 +6,7 @@ export const initialItinerary: Itinerary = {
   id: uuidv4(),
   name: "Europa Junho 2026",
   startDate: "2026-05-20",
-  endDate: "2026-06-11",
+  endDate: "2026-12-31",
   travelers: [
     {
       id: uuidv4(),

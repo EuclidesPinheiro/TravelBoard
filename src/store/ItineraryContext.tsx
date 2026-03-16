@@ -45,7 +45,12 @@ export function ItineraryProvider({ children }: { children: ReactNode }) {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Migrate: extend endDate to end of 2026 if shorter
+          return parsed.map((it: Itinerary) =>
+            it.endDate < '2026-12-31' ? { ...it, endDate: '2026-12-31' } : it
+          );
+        }
       } catch (e) {
         console.error('Failed to parse saved versions', e);
       }

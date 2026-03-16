@@ -214,6 +214,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
 
       {/* Stays / Accommodation */}
       <StaysSection
+        key={segment.id}
         stays={stays}
         arrivalDate={arrivalDate}
         arrivalTime={arrivalTime}
@@ -300,6 +301,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
 // --- Stays Section Component ---
 
 interface StaysSectionProps {
+  key?: string;
   stays: Stay[];
   arrivalDate: string;
   arrivalTime: string;
@@ -313,24 +315,37 @@ interface StaysSectionProps {
   onUpdate: (stayId: string, updater: (s: Stay) => Stay) => void;
 }
 
+function getDefaultTimes(arrDate: string, arrTime: string, depDate: string, depTime: string) {
+  let checkIn = arrTime || '14:00';
+  let checkOut = depTime || '11:00';
+  // If same day (or overlap), ensure checkIn < checkOut
+  if (arrDate >= depDate && checkIn >= checkOut) {
+    checkIn = arrTime || '00:00';
+    checkOut = depTime || '23:59';
+  }
+  return { checkIn, checkOut };
+}
+
 function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departureTime, cityMinDt, cityMaxDt, otherTravelers, onAdd, onRemove, onUpdate }: StaysSectionProps) {
+  const defaults = getDefaultTimes(arrivalDate, arrivalTime, departureDate, departureTime);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newLink, setNewLink] = useState('');
   const [newCheckInDate, setNewCheckInDate] = useState(arrivalDate);
-  const [newCheckInTime, setNewCheckInTime] = useState(arrivalTime || '14:00');
+  const [newCheckInTime, setNewCheckInTime] = useState(defaults.checkIn);
   const [newCheckOutDate, setNewCheckOutDate] = useState(departureDate);
-  const [newCheckOutTime, setNewCheckOutTime] = useState(departureTime || '11:00');
+  const [newCheckOutTime, setNewCheckOutTime] = useState(defaults.checkOut);
   const [newSharedWith, setNewSharedWith] = useState<string[]>([]);
   const [newCost, setNewCost] = useState('');
 
   function resetForm() {
+    const defs = getDefaultTimes(arrivalDate, arrivalTime, departureDate, departureTime);
     setNewName('');
     setNewLink('');
     setNewCheckInDate(arrivalDate);
-    setNewCheckInTime(arrivalTime || '14:00');
+    setNewCheckInTime(defs.checkIn);
     setNewCheckOutDate(departureDate);
-    setNewCheckOutTime(departureTime || '11:00');
+    setNewCheckOutTime(defs.checkOut);
     setNewSharedWith([]);
     setNewCost('');
     setIsAdding(false);
