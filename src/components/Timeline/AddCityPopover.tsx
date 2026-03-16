@@ -149,6 +149,7 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
+            maxLength={30}
             placeholder="Search or add city..."
             className="bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none w-full"
             onKeyDown={e => {

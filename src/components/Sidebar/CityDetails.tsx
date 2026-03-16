@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
-import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil } from 'lucide-react';
+import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil, UserCheck } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../../utils/cn';
@@ -106,6 +106,14 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
 
   // Other travelers for "shared with" picker
   const otherTravelers = itinerary.travelers.filter(t => t.id !== traveler.id);
+
+  // Shared stays: stays from other travelers in the same city that include current traveler in sharedWith
+  const sharedStaysFromOthers = otherTravelers.flatMap(t => {
+    return t.segments
+      .filter(s => s.type === 'city' && (s as CitySegment).cityName.toLowerCase() === segment.cityName.toLowerCase())
+      .flatMap(s => ((s as CitySegment).stays ?? []).filter(st => st.sharedWith.includes(traveler.id)))
+      .map(st => ({ stay: st, ownerName: t.name, ownerColor: t.color }));
+  });
 
   function formatDateShort(dateStr: string): string {
     return format(parseISO(dateStr), 'dd/MM');
@@ -223,6 +231,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         cityMinDt={cityMinDt}
         cityMaxDt={cityMaxDt}
         otherTravelers={otherTravelers}
+        sharedStaysFromOthers={sharedStaysFromOthers}
         onAdd={addStay}
         onRemove={removeStay}
         onUpdate={updateStay}
@@ -300,6 +309,12 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
 
 // --- Stays Section Component ---
 
+interface SharedStayInfo {
+  stay: Stay;
+  ownerName: string;
+  ownerColor: string;
+}
+
 interface StaysSectionProps {
   key?: string;
   stays: Stay[];
@@ -310,6 +325,7 @@ interface StaysSectionProps {
   cityMinDt: string;
   cityMaxDt: string;
   otherTravelers: Traveler[];
+  sharedStaysFromOthers: SharedStayInfo[];
   onAdd: (stay: Stay) => void;
   onRemove: (stayId: string) => void;
   onUpdate: (stayId: string, updater: (s: Stay) => Stay) => void;
@@ -326,7 +342,7 @@ function getDefaultTimes(arrDate: string, arrTime: string, depDate: string, depT
   return { checkIn, checkOut };
 }
 
-function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departureTime, cityMinDt, cityMaxDt, otherTravelers, onAdd, onRemove, onUpdate }: StaysSectionProps) {
+function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departureTime, cityMinDt, cityMaxDt, otherTravelers, sharedStaysFromOthers, onAdd, onRemove, onUpdate }: StaysSectionProps) {
   const defaults = getDefaultTimes(arrivalDate, arrivalTime, departureDate, departureTime);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -403,6 +419,62 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
         />
       ))}
 
+      {/* Shared stays from other travelers that haven't been adopted yet */}
+      {(() => {
+        const existingNames = new Set(stays.map(s => s.name.toLowerCase()));
+        const available = sharedStaysFromOthers.filter(s => !existingNames.has(s.stay.name.toLowerCase()));
+        if (available.length === 0) return null;
+
+        function handleAdopt(shared: SharedStayInfo) {
+          onAdd({
+            id: uuidv4(),
+            name: shared.stay.name,
+            link: shared.stay.link,
+            checkInDate: shared.stay.checkInDate,
+            checkInTime: shared.stay.checkInTime,
+            checkOutDate: shared.stay.checkOutDate,
+            checkOutTime: shared.stay.checkOutTime,
+            sharedWith: [],
+            cost: shared.stay.cost,
+          });
+        }
+
+        return (
+          <div className="space-y-2">
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-amber-600 flex items-center gap-1.5">
+              <UserCheck size={12} />
+              Shared with you
+            </div>
+            {available.map(({ stay: s, ownerName, ownerColor }) => (
+              <button
+                key={s.id}
+                onClick={() => handleAdopt({ stay: s, ownerName, ownerColor })}
+                className="w-full text-left bg-amber-50/60 border border-amber-200 rounded-lg p-2.5 hover:bg-amber-50 hover:border-amber-300 transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] text-white font-bold shrink-0"
+                    style={{ backgroundColor: ownerColor }}
+                  >
+                    {ownerName.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-slate-800 truncate">{s.name}</div>
+                    <div className="text-[10px] text-slate-400">
+                      {format(parseISO(s.checkInDate), 'dd/MM')} {s.checkInTime} – {format(parseISO(s.checkOutDate), 'dd/MM')} {s.checkOutTime}
+                      {s.cost != null && <span className="ml-1.5 text-emerald-600">${s.cost.toFixed(2)}</span>}
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-medium text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    Use
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Add form */}
       {isAdding ? (
         <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-3 shadow-sm">
@@ -410,6 +482,7 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
             type="text"
             value={newName}
             onChange={e => setNewName(e.target.value)}
+            maxLength={60}
             placeholder="Accommodation name..."
             className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
             autoFocus
@@ -418,6 +491,7 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
             type="url"
             value={newLink}
             onChange={e => setNewLink(e.target.value)}
+            maxLength={300}
             placeholder="Link (optional)"
             className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
           />
@@ -597,6 +671,7 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpda
           type="text"
           value={editName}
           onChange={e => setEditName(e.target.value)}
+          maxLength={60}
           placeholder="Accommodation name..."
           className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
           autoFocus
@@ -605,6 +680,7 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpda
           type="url"
           value={editLink}
           onChange={e => setEditLink(e.target.value)}
+          maxLength={300}
           placeholder="Link (optional)"
           className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
         />
@@ -810,6 +886,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
   const [newLink, setNewLink] = useState('');
   const [newCategory, setNewCategory] = useState<AttractionCategory>('museum');
   const [newAttrCost, setNewAttrCost] = useState('');
+  const [newComment, setNewComment] = useState('');
 
   // Sort by votes descending
   const sorted = [...attractions].sort((a, b) => b.votes.length - a.votes.length);
@@ -820,6 +897,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
     setNewLink('');
     setNewCategory('museum');
     setNewAttrCost('');
+    setNewComment('');
     setIsAdding(false);
   }
 
@@ -834,6 +912,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
       addedBy: travelerId,
       votes: [travelerId], // auto-vote by creator
       cost: !isNaN(parsedCost) && parsedCost > 0 ? parsedCost : undefined,
+      comment: newComment.trim() || undefined,
     };
     onUpdate([...attractions, attraction]);
     resetForm();
@@ -912,6 +991,11 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
                         <span className="truncate">{attraction.link}</span>
                       </a>
                     )}
+                    {attraction.comment && (
+                      <p className="text-xs text-slate-500 mt-1 italic leading-snug">
+                        &ldquo;{attraction.comment}&rdquo;
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
@@ -978,6 +1062,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
             type="text"
             value={newName}
             onChange={e => setNewName(e.target.value)}
+            maxLength={60}
             onKeyDown={e => {
               if (e.key === 'Enter') handleAdd();
               if (e.key === 'Escape') resetForm();
@@ -990,6 +1075,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
             type="url"
             value={newLink}
             onChange={e => setNewLink(e.target.value)}
+            maxLength={300}
             onKeyDown={e => {
               if (e.key === 'Enter') handleAdd();
               if (e.key === 'Escape') resetForm();
@@ -1035,6 +1121,18 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
                 className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md pl-6 pr-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder-slate-400"
               />
             </div>
+          </div>
+
+          <div>
+            <div className="text-xs text-slate-500 mb-1">Comment (optional)</div>
+            <textarea
+              value={newComment}
+              onChange={e => setNewComment(e.target.value)}
+              maxLength={200}
+              placeholder="Why visit this place, tips..."
+              rows={2}
+              className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400 resize-none"
+            />
           </div>
 
           <div className="flex gap-2 pt-1">
@@ -1223,6 +1321,7 @@ function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate 
             type="text"
             value={newText}
             onChange={e => setNewText(e.target.value)}
+            maxLength={100}
             onKeyDown={e => {
               if (e.key === 'Enter') handleAdd();
               if (e.key === 'Escape') { setIsAdding(false); setNewText(''); }

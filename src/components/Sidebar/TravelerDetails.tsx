@@ -56,6 +56,7 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
               type="text"
               value={editName}
               onChange={e => setEditName(e.target.value)}
+              maxLength={30}
               onKeyDown={e => {
                 if (e.key === 'Enter') saveEdit();
                 if (e.key === 'Escape') cancelEditing();

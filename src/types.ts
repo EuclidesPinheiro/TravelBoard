@@ -59,6 +59,7 @@ export interface Attraction {
   addedBy: string; // traveler ID
   votes: string[]; // traveler IDs who voted
   cost?: number;
+  comment?: string;
 }
 
 export interface ChecklistItem {

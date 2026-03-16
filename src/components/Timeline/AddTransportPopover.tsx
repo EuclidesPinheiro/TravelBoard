@@ -254,6 +254,7 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
                   type="text"
                   value={destSearch}
                   onChange={e => setDestSearch(e.target.value)}
+                  maxLength={30}
                   placeholder="Search or add city..."
                   className="bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none w-full"
                 />
