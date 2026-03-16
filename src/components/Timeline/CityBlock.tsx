@@ -4,7 +4,7 @@ import { CitySegment, Traveler } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { getCityColor } from '../../utils/cityColors';
 import { cn } from '../../utils/cn';
-import { Plus } from 'lucide-react';
+import { Home, Plus } from 'lucide-react';
 import { AddTransportPopover } from './AddTransportPopover';
 
 interface CityBlockProps {
@@ -19,6 +19,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   const { setSelection, selection } = useItinerary();
   const isSelected = selection?.type === 'city' && selection.segmentId === segment.id;
   const cityColor = getCityColor(segment.cityName);
+  const hasStays = segment.stays && segment.stays.length > 0;
 
   const [transportPopover, setTransportPopover] = useState<{ x: number; y: number } | null>(null);
 
@@ -55,10 +56,9 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         onClick={() => setSelection(isSelected ? null : { type: 'city', travelerId: traveler.id, segmentId: segment.id })}
         title={`${segment.cityName} (${segment.startDate} to ${segment.endDate})`}
       >
-        <div
-          className="absolute left-0 top-0 bottom-0 w-1"
-          style={{ backgroundColor: cityColor }}
-        />
+        {hasStays && (
+          <Home size={10} className="absolute top-0.5 right-0.5 text-slate-500" />
+        )}
         <span className="text-xs font-semibold text-slate-700 truncate px-1">
           {segment.cityName}
         </span>
