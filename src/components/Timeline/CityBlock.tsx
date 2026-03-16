@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CitySegment, Traveler } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
@@ -34,41 +34,13 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   // Find the next city segment (skipping any transport)
   const nextCity = traveler.segments.slice(segIndex + 1).find(s => s.type === 'city') as CitySegment | undefined;
 
-  // --- Drag & Drop ---
-  const [dragState, setDragState] = useState<{
-    type: DragType;
-    startX: number;
-    deltaX: number;
-  } | null>(null);
+  // --- Drag & Drop (using refs to avoid stale closures) ---
+  const dragRef = useRef<{ type: DragType; startX: number; deltaX: number } | null>(null);
   const didDragRef = useRef(false);
-
-  useEffect(() => {
-    if (!dragState) return;
-
-    function handleMouseMove(e: MouseEvent) {
-      const deltaX = e.clientX - dragState!.startX;
-      if (Math.abs(deltaX) > 3) didDragRef.current = true;
-      setDragState(prev => prev ? { ...prev, deltaX } : null);
-    }
-
-    function handleMouseUp() {
-      if (dragState && didDragRef.current) {
-        const daysDelta = Math.round(dragState.deltaX / zoomLevel);
-        if (daysDelta !== 0) {
-          commitDrag(dragState.type, daysDelta);
-        }
-      }
-      setDragState(null);
-    }
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragState?.startX, dragState?.type]);
+  const [, forceRender] = useState(0);
+  const zoomRef = useRef(zoomLevel);
+  zoomRef.current = zoomLevel;
+  const blockRef = useRef<HTMLDivElement>(null);
 
   function commitDrag(type: DragType, daysDelta: number) {
     setItinerary(prev => ({
@@ -108,7 +80,32 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     e.preventDefault();
     e.stopPropagation();
     didDragRef.current = false;
-    setDragState({ type, startX: e.clientX, deltaX: 0 });
+    dragRef.current = { type, startX: e.clientX, deltaX: 0 };
+    forceRender(n => n + 1);
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const deltaX = ev.clientX - dragRef.current.startX;
+      if (Math.abs(deltaX) > 3) didDragRef.current = true;
+      dragRef.current.deltaX = deltaX;
+      forceRender(n => n + 1);
+    };
+
+    const onMouseUp = () => {
+      if (dragRef.current && didDragRef.current) {
+        const daysDelta = Math.round(dragRef.current.deltaX / zoomRef.current);
+        if (daysDelta !== 0) {
+          commitDrag(dragRef.current.type, daysDelta);
+        }
+      }
+      dragRef.current = null;
+      forceRender(n => n + 1);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
   }
 
   function handleClick() {
@@ -120,36 +117,36 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   }
 
   // Visual offset during drag
+  const drag = dragRef.current;
+  const hasDragged = drag !== null && didDragRef.current;
   let visualLeft = left + 2;
   let visualWidth = width - 4;
-  if (dragState && didDragRef.current) {
-    if (dragState.type === 'move') {
-      visualLeft += dragState.deltaX;
-    } else if (dragState.type === 'resize-left') {
-      visualLeft += dragState.deltaX;
-      visualWidth -= dragState.deltaX;
+  if (hasDragged && drag) {
+    if (drag.type === 'move') {
+      visualLeft += drag.deltaX;
+    } else if (drag.type === 'resize-left') {
+      visualLeft += drag.deltaX;
+      visualWidth -= drag.deltaX;
     } else {
-      visualWidth += dragState.deltaX;
+      visualWidth += drag.deltaX;
     }
   }
   visualWidth = Math.max(visualWidth, 20);
 
-  const isDragging = dragState !== null && didDragRef.current;
+  const isDragging = hasDragged;
 
   // Snapped days preview during drag
   let previewLabel = '';
-  if (isDragging && dragState) {
-    const daysDelta = Math.round(dragState.deltaX / zoomLevel);
-    if (daysDelta !== 0) {
-      const start = parseISO(segment.startDate);
-      const end = parseISO(segment.endDate);
-      if (dragState.type === 'move') {
-        previewLabel = `${format(addDays(start, daysDelta), 'dd/MM')} – ${format(addDays(end, daysDelta), 'dd/MM')}`;
-      } else if (dragState.type === 'resize-left') {
-        previewLabel = `${format(addDays(start, daysDelta), 'dd/MM')} – ${format(end, 'dd/MM')}`;
-      } else {
-        previewLabel = `${format(start, 'dd/MM')} – ${format(addDays(end, daysDelta), 'dd/MM')}`;
-      }
+  if (isDragging && drag) {
+    const daysDelta = Math.round(drag.deltaX / zoomLevel);
+    const start = parseISO(segment.startDate);
+    const end = parseISO(segment.endDate);
+    if (drag.type === 'move') {
+      previewLabel = `${format(addDays(start, daysDelta), 'dd/MM')} – ${format(addDays(end, daysDelta), 'dd/MM')}`;
+    } else if (drag.type === 'resize-left') {
+      previewLabel = `${format(addDays(start, daysDelta), 'dd/MM')} – ${format(end, 'dd/MM')}`;
+    } else {
+      previewLabel = `${format(start, 'dd/MM')} – ${format(addDays(end, daysDelta), 'dd/MM')}`;
     }
   }
 
@@ -162,9 +159,13 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     });
   }
 
+  // Get tooltip position from block's bounding rect (for portal)
+  const blockRect = blockRef.current?.getBoundingClientRect();
+
   return (
     <>
       <div
+        ref={blockRef}
         className={cn(
           "absolute top-1/2 -translate-y-1/2 h-10 rounded-md shadow-sm border flex items-center justify-center cursor-pointer transition-shadow hover:shadow-md hover:z-10 overflow-hidden group",
           isSelected ? "ring-2 ring-indigo-500 z-10" : "border-slate-200/60",
@@ -179,13 +180,12 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
           userSelect: 'none',
         }}
         onMouseDown={(e) => {
-          // Only start move drag from the body (not the resize handles)
           const target = e.target as HTMLElement;
           if (target.dataset.handle) return;
           handleDragStart('move', e);
         }}
         onClick={handleClick}
-        title={`${segment.cityName} (${segment.startDate} to ${segment.endDate})`}
+        title={isDragging ? undefined : `${segment.cityName} (${segment.startDate} to ${segment.endDate})`}
       >
         {/* Left resize handle */}
         <div
@@ -207,14 +207,22 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         <span className="text-xs font-semibold text-slate-700 truncate px-1 pointer-events-none select-none">
           {segment.cityName}
         </span>
-
-        {/* Date preview tooltip during drag */}
-        {isDragging && previewLabel && (
-          <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-medium px-2 py-0.5 rounded whitespace-nowrap pointer-events-none z-50">
-            {previewLabel}
-          </div>
-        )}
       </div>
+
+      {/* Date preview tooltip — portal to body to escape overflow clipping */}
+      {isDragging && previewLabel && blockRect && createPortal(
+        <div
+          className="fixed bg-slate-800 text-white text-[10px] font-medium px-2 py-0.5 rounded whitespace-nowrap pointer-events-none z-[9999]"
+          style={{
+            left: blockRect.left + blockRect.width / 2,
+            top: blockRect.top - 28,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          {previewLabel}
+        </div>,
+        document.body
+      )}
 
       {/* Add Transport "+" button — shown when selected and no transport after */}
       {isSelected && !hasTransportAfter && !isDragging && (
