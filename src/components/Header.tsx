@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
-import { Calendar, Download, Plus, Save, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, Plus, Save, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../utils/cn';
 import html2canvas from 'html2canvas';
 
@@ -36,9 +36,7 @@ export function Header() {
   return (
       <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
         <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center w-10 h-10 bg-indigo-600 text-white rounded-xl shadow-sm">
-            <Calendar size={20} />
-          </div>
+          <img src="/favicon.png" alt="TravelBoard" className="w-10 h-10 rounded-xl shadow-sm" />
           <div>
             <h1 className="text-lg font-semibold text-slate-900 leading-tight">{itinerary.name}</h1>
             <p className="text-xs text-slate-500 font-medium">
