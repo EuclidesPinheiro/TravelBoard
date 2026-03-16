@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
-import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp } from 'lucide-react';
+import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../../utils/cn';
@@ -305,6 +305,7 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
   const [newCheckOutDate, setNewCheckOutDate] = useState(departureDate);
   const [newCheckOutTime, setNewCheckOutTime] = useState(departureTime || '11:00');
   const [newSharedWith, setNewSharedWith] = useState<string[]>([]);
+  const [newCost, setNewCost] = useState('');
 
   function resetForm() {
     setNewName('');
@@ -314,6 +315,7 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
     setNewCheckOutDate(departureDate);
     setNewCheckOutTime(departureTime || '11:00');
     setNewSharedWith([]);
+    setNewCost('');
     setIsAdding(false);
   }
 
@@ -324,6 +326,7 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
     if (checkInDt > checkOutDt) return;
     if (checkInDt < cityMinDt || checkOutDt > cityMaxDt) return;
 
+    const parsedCost = parseFloat(newCost);
     onAdd({
       id: uuidv4(),
       name: newName.trim(),
@@ -333,6 +336,7 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
       checkOutDate: newCheckOutDate,
       checkOutTime: newCheckOutTime,
       sharedWith: newSharedWith,
+      cost: !isNaN(parsedCost) && parsedCost > 0 ? parsedCost : undefined,
     });
     resetForm();
   }
@@ -399,6 +403,22 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
             <div className="flex gap-2">
               <input type="date" value={newCheckOutDate} min={newCheckInDate} max={departureDate} onChange={e => setNewCheckOutDate(e.target.value)} className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
               <input type="time" value={newCheckOutTime} onChange={e => setNewCheckOutTime(e.target.value)} className="w-[80px] text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs text-slate-500 mb-1">Cost (total)</div>
+            <div className="relative">
+              <DollarSign size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="number"
+                value={newCost}
+                onChange={e => setNewCost(e.target.value)}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md pl-6 pr-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 placeholder-slate-400"
+              />
             </div>
           </div>
 
@@ -479,8 +499,10 @@ interface StayCardProps {
   onUpdate: (updater: (s: Stay) => Stay) => void;
 }
 
-function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove }: StayCardProps) {
+function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpdate }: StayCardProps) {
   const sharedTravelers = otherTravelers.filter(t => stay.sharedWith.includes(t.id));
+  const splitCount = 1 + stay.sharedWith.length; // owner + shared
+  const perPerson = stay.cost ? stay.cost / splitCount : 0;
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm space-y-2">
@@ -517,6 +539,30 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove }: Stay
           <span className="text-slate-400">Out: </span>
           {format(parseISO(stay.checkOutDate), 'dd/MM')} {stay.checkOutTime}
         </div>
+      </div>
+
+      {/* Cost display / edit */}
+      <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+        <DollarSign size={12} className="text-emerald-500 shrink-0" />
+        <div className="relative flex-1">
+          <input
+            type="number"
+            value={stay.cost ?? ''}
+            onChange={e => {
+              const val = parseFloat(e.target.value);
+              onUpdate(s => ({ ...s, cost: !isNaN(val) && val > 0 ? val : undefined }));
+            }}
+            placeholder="Cost..."
+            min="0"
+            step="0.01"
+            className="w-full text-xs bg-slate-50 border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder-slate-400"
+          />
+        </div>
+        {stay.cost && splitCount > 1 && (
+          <span className="text-[10px] text-emerald-600 font-medium whitespace-nowrap">
+            ${perPerson.toFixed(2)}/person
+          </span>
+        )}
       </div>
 
       {sharedTravelers.length > 0 && (
@@ -562,6 +608,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
   const [newName, setNewName] = useState('');
   const [newLink, setNewLink] = useState('');
   const [newCategory, setNewCategory] = useState<AttractionCategory>('museum');
+  const [newAttrCost, setNewAttrCost] = useState('');
 
   // Sort by votes descending
   const sorted = [...attractions].sort((a, b) => b.votes.length - a.votes.length);
@@ -571,11 +618,13 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
     setNewName('');
     setNewLink('');
     setNewCategory('museum');
+    setNewAttrCost('');
     setIsAdding(false);
   }
 
   function handleAdd() {
     if (!newName.trim()) return;
+    const parsedCost = parseFloat(newAttrCost);
     const attraction: Attraction = {
       id: uuidv4(),
       name: newName.trim(),
@@ -583,6 +632,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
       category: newCategory,
       addedBy: travelerId,
       votes: [travelerId], // auto-vote by creator
+      cost: !isNaN(parsedCost) && parsedCost > 0 ? parsedCost : undefined,
     };
     onUpdate([...attractions, attraction]);
     resetForm();
@@ -644,6 +694,11 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
                       >
                         {catConfig.label}
                       </span>
+                      {attraction.cost && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
+                          ${attraction.cost.toFixed(2)}
+                        </span>
+                      )}
                     </div>
                     {attraction.link && (
                       <a
@@ -762,6 +817,22 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
                   {cfg.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs text-slate-500 mb-1">Cost per person</div>
+            <div className="relative">
+              <DollarSign size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="number"
+                value={newAttrCost}
+                onChange={e => setNewAttrCost(e.target.value)}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+                className="w-full text-sm bg-slate-50 border border-slate-200 rounded-md pl-6 pr-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder-slate-400"
+              />
             </div>
           </div>
 

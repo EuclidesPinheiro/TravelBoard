@@ -10,6 +10,7 @@ export interface Stay {
   checkOutDate: string; // YYYY-MM-DD
   checkOutTime: string; // HH:mm
   sharedWith: string[]; // traveler IDs
+  cost?: number; // total cost (split among owner + sharedWith)
 }
 
 export interface CitySegment {
@@ -36,6 +37,7 @@ export interface TransportSegment {
   arrivalTime: string; // HH:mm
   notes?: string;
   overnight?: boolean;
+  cost?: number;
 }
 
 export type Segment = CitySegment | TransportSegment;
@@ -56,6 +58,7 @@ export interface Attraction {
   category: AttractionCategory;
   addedBy: string; // traveler ID
   votes: string[]; // traveler IDs who voted
+  cost?: number;
 }
 
 export interface Itinerary {

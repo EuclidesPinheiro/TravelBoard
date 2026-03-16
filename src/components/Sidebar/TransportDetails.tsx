@@ -1,11 +1,26 @@
 import { Traveler, TransportSegment } from '../../types';
-import { Navigation, Clock, Moon } from 'lucide-react';
+import { useItinerary } from '../../store/ItineraryContext';
+import { Navigation, Clock, Moon, DollarSign } from 'lucide-react';
 import { parseISO, format, differenceInMinutes } from 'date-fns';
 
 export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, segmentId: string }) {
+  const { setItinerary } = useItinerary();
   const segment = traveler.segments.find(s => s.id === segmentId) as TransportSegment;
 
   if (!segment) return null;
+
+  function updateCost(cost: number | undefined) {
+    setItinerary(prev => ({
+      ...prev,
+      travelers: prev.travelers.map(t => {
+        if (t.id !== traveler.id) return t;
+        return {
+          ...t,
+          segments: t.segments.map(s => s.id === segmentId ? { ...s, cost } : s),
+        };
+      }),
+    }));
+  }
 
   // Calculate duration using parseISO (never new Date for date strings)
   const dep = parseISO(segment.departureDate);
@@ -58,6 +73,29 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
               Overnight
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Cost */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+          <DollarSign size={16} className="text-emerald-500" />
+          Cost
+        </h4>
+        <div className="relative">
+          <DollarSign size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="number"
+            value={segment.cost ?? ''}
+            onChange={e => {
+              const val = parseFloat(e.target.value);
+              updateCost(!isNaN(val) && val > 0 ? val : undefined);
+            }}
+            placeholder="0.00"
+            min="0"
+            step="0.01"
+            className="w-full text-sm bg-white border border-slate-200 rounded-lg pl-7 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder-slate-400"
+          />
         </div>
       </div>
 

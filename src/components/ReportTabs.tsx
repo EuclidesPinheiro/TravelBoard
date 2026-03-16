@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { MapPin, Navigation, Star } from 'lucide-react';
+import { MapPin, Navigation, Star, DollarSign } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { CityReport } from './CityReport';
 import { TransportReport } from './TransportReport';
 import { AttractionsReport } from './AttractionsReport';
+import { BudgetReport } from './BudgetReport';
 
-type Tab = 'city' | 'transport' | 'attractions';
+type Tab = 'city' | 'transport' | 'attractions' | 'budget';
 
 export function ReportTabs() {
   const [activeTab, setActiveTab] = useState<Tab>('city');
@@ -14,6 +15,7 @@ export function ReportTabs() {
     { key: 'city', label: 'Time per City', icon: MapPin },
     { key: 'transport', label: 'Time per Transport', icon: Navigation },
     { key: 'attractions', label: 'Attractions', icon: Star },
+    { key: 'budget', label: 'Budget', icon: DollarSign },
   ];
 
   return (
@@ -44,6 +46,7 @@ export function ReportTabs() {
       {activeTab === 'city' && <CityReport />}
       {activeTab === 'transport' && <TransportReport />}
       {activeTab === 'attractions' && <AttractionsReport />}
+      {activeTab === 'budget' && <BudgetReport />}
     </div>
   );
 }
