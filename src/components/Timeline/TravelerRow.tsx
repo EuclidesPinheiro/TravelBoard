@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Traveler, CitySegment, TransportSegment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { differenceInDays, parseISO, startOfDay } from 'date-fns';
@@ -218,14 +219,15 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay, onReorderS
         })}
       </div>
 
-      {/* Add City Popover */}
-      {popover && (
+      {/* Add City Popover — portal to body to escape transform containing block */}
+      {popover && createPortal(
         <AddCityPopover
           travelerId={traveler.id}
           date={days[popover.dayIndex]}
           position={{ x: popover.x, y: popover.y }}
           onClose={() => setPopover(null)}
-        />
+        />,
+        document.body
       )}
     </div>
   );
