@@ -4,6 +4,7 @@
  */
 
 import { useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { ItineraryProvider, useItinerary } from './store/ItineraryContext';
 import { Header } from './components/Header';
 import { TimelineGrid } from './components/Timeline/TimelineGrid';
@@ -105,8 +106,18 @@ function AppContent() {
 }
 
 export default function App() {
+  const { boardId } = useParams<{ boardId: string }>();
+
+  if (!boardId) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-slate-500">Board ID not found in URL.</p>
+      </div>
+    );
+  }
+
   return (
-    <ItineraryProvider>
+    <ItineraryProvider boardId={boardId}>
       <AppContent />
     </ItineraryProvider>
   );
