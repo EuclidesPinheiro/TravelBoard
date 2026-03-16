@@ -1,8 +1,9 @@
 import { Traveler, CitySegment, TransportSegment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
-import { Navigation, Calendar, Trash2, Pencil, Check, X } from 'lucide-react';
+import { Navigation, Calendar, Trash2, Pencil, Check, X, Copy } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 import { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 const COLORS = [
   '#E74C3C', '#E84393', '#9B59B6', '#3498DB',
@@ -149,6 +150,26 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
           })}
         </div>
       </div>
+
+      <button
+        onClick={() => {
+          const cloned: Traveler = {
+            id: uuidv4(),
+            name: `${traveler.name} (copy)`,
+            color: COLORS[(COLORS.indexOf(traveler.color) + 1) % COLORS.length] || COLORS[0],
+            segments: traveler.segments.map(seg => ({ ...seg, id: uuidv4() })),
+          };
+          setItinerary(prev => ({
+            ...prev,
+            travelers: [...prev.travelers, cloned],
+          }));
+          setSelection({ type: 'traveler', travelerId: cloned.id });
+        }}
+        className="w-full py-2 px-4 bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+      >
+        <Copy size={14} />
+        Duplicar Viajante
+      </button>
 
       {!confirmDelete ? (
         <button

@@ -5,14 +5,87 @@ import { TravelerRow } from './TravelerRow';
 import { AddTravelerModal } from '../Modals/AddTravelerModal';
 import { cn } from '../../utils/cn';
 import { Plus } from 'lucide-react';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
+
+const ROW_HEIGHT = 72;
 
 export function TimelineGrid() {
-  const { itinerary, zoomLevel } = useItinerary();
+  const { itinerary, zoomLevel, setItinerary } = useItinerary();
   const days = getTimelineDays(itinerary.startDate, itinerary.endDate);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
   const [isAddTravelerOpen, setIsAddTravelerOpen] = useState(false);
+
+  // --- Drag-to-reorder state ---
+  const dragRef = useRef<{
+    fromIndex: number;
+    startY: number;
+  } | null>(null);
+  const [dragState, setDragState] = useState<{
+    fromIndex: number;
+    deltaY: number;
+    currentIndex: number;
+  } | null>(null);
+  const rowsContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleDragStart = useCallback((travelerId: string, mouseY: number) => {
+    const idx = itinerary.travelers.findIndex(t => t.id === travelerId);
+    if (idx === -1) return;
+    dragRef.current = { fromIndex: idx, startY: mouseY };
+    setDragState({ fromIndex: idx, deltaY: 0, currentIndex: idx });
+  }, [itinerary.travelers]);
+
+  useEffect(() => {
+    if (!dragState) return;
+
+    function handleMouseMove(e: MouseEvent) {
+      if (!dragRef.current) return;
+      const deltaY = e.clientY - dragRef.current.startY;
+      const fromIndex = dragRef.current.fromIndex;
+      const rawTarget = fromIndex + deltaY / ROW_HEIGHT;
+      const currentIndex = Math.max(0, Math.min(itinerary.travelers.length - 1, Math.round(rawTarget)));
+      setDragState({ fromIndex, deltaY, currentIndex });
+    }
+
+    function handleMouseUp() {
+      if (dragRef.current && dragState) {
+        const { fromIndex } = dragRef.current;
+        const { currentIndex } = dragState;
+        if (currentIndex !== fromIndex) {
+          setItinerary(prev => {
+            const travelers = [...prev.travelers];
+            const [moved] = travelers.splice(fromIndex, 1);
+            travelers.splice(currentIndex, 0, moved);
+            return { ...prev, travelers };
+          });
+        }
+      }
+      dragRef.current = null;
+      setDragState(null);
+    }
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState, itinerary.travelers.length, setItinerary]);
+
+  // Compute translateY for each row during drag
+  function getRowTranslateY(rowIndex: number): number {
+    if (!dragState) return 0;
+    const { fromIndex, deltaY, currentIndex } = dragState;
+    if (rowIndex === fromIndex) return deltaY;
+    if (fromIndex < currentIndex) {
+      // Dragged down: rows between (fromIndex, currentIndex] shift up
+      if (rowIndex > fromIndex && rowIndex <= currentIndex) return -ROW_HEIGHT;
+    } else {
+      // Dragged up: rows between [currentIndex, fromIndex) shift down
+      if (rowIndex >= currentIndex && rowIndex < fromIndex) return ROW_HEIGHT;
+    }
+    return 0;
+  }
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -61,7 +134,7 @@ export function TimelineGrid() {
         </div>
 
         {/* Traveler Rows */}
-        <div className="flex flex-col pb-10 relative">
+        <div className="flex flex-col pb-10 relative" ref={rowsContainerRef}>
           {/* Column hover overlay */}
           {hoveredDay !== null && (
             <div
@@ -69,9 +142,22 @@ export function TimelineGrid() {
               style={{ left: 256 + hoveredDay * zoomLevel, width: zoomLevel }}
             />
           )}
-          {itinerary.travelers.map(traveler => (
-            <TravelerRow key={traveler.id} traveler={traveler} days={days} onDayHover={setHoveredDay} hoveredDay={hoveredDay} />
-          ))}
+          {itinerary.travelers.map((traveler, i) => {
+            const translateY = getRowTranslateY(i);
+            const isBeingDragged = dragState?.fromIndex === i;
+            return (
+              <TravelerRow
+                key={traveler.id}
+                traveler={traveler}
+                days={days}
+                onDayHover={setHoveredDay}
+                hoveredDay={hoveredDay}
+                onReorderStart={handleDragStart}
+                isDragging={isBeingDragged}
+                dragTranslateY={translateY}
+              />
+            );
+          })}
 
           {/* Add Traveler Row */}
           <div

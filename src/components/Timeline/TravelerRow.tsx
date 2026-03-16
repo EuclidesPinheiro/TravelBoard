@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Traveler, CitySegment, TransportSegment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { differenceInDays, parseISO, startOfDay } from 'date-fns';
 import { CityBlock } from './CityBlock';
 import { TransportConnector } from './TransportConnector';
 import { AddCityPopover } from './AddCityPopover';
-import { Info } from 'lucide-react';
+import { Info, GripVertical } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 interface TravelerRowProps {
@@ -14,9 +14,12 @@ interface TravelerRowProps {
   days: Date[];
   onDayHover: (index: number | null) => void;
   hoveredDay: number | null;
+  onReorderStart?: (travelerId: string, mouseY: number) => void;
+  isDragging?: boolean;
+  dragTranslateY?: number;
 }
 
-export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: TravelerRowProps) {
+export function TravelerRow({ traveler, days, onDayHover, hoveredDay, onReorderStart, isDragging, dragTranslateY = 0 }: TravelerRowProps) {
   const { itinerary, zoomLevel, setSelection, selection, highlightedTravelerId, setHighlightedTravelerId } = useItinerary();
   const itineraryStart = startOfDay(parseISO(itinerary.startDate));
   const [popover, setPopover] = useState<{ dayIndex: number; x: number; y: number } | null>(null);
@@ -67,22 +70,38 @@ export function TravelerRow({ traveler, days, onDayHover, hoveredDay }: Traveler
 
   return (
     <div className={cn(
-      "flex border-b transition-[background-color,opacity,box-shadow] relative h-[72px] group",
+      "flex border-b relative h-[72px] group",
       isHighlighted ? "border-slate-300 bg-white" : "border-slate-100",
-      isDimmed ? "opacity-40" : "hover:bg-slate-50/50"
+      isDimmed ? "opacity-40" : "hover:bg-slate-50/50",
+      isDragging ? "z-40 shadow-lg shadow-slate-300/50 scale-[1.01] bg-white" : "transition-transform duration-200"
     )}
-    style={isHighlighted ? { boxShadow: `inset 0 0 0 2px ${traveler.color}40` } : undefined}
+    style={{
+      transform: `translateY(${dragTranslateY}px)`,
+      ...(isHighlighted ? { boxShadow: isDragging ? undefined : `inset 0 0 0 2px ${traveler.color}40` } : {}),
+    }}
     >
       {/* Sticky Left Column */}
       <div
         className={cn(
-          "w-64 shrink-0 border-r border-slate-200 sticky left-0 z-20 flex items-center px-4 cursor-pointer transition-colors shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
+          "w-64 shrink-0 border-r border-slate-200 sticky left-0 z-20 flex items-center px-2 cursor-pointer transition-colors shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
           isHighlighted ? "bg-white" : isDimmed ? "bg-white" : "bg-white group-hover:bg-slate-50"
         )}
         onClick={handleRowClick}
       >
+        {/* Drag handle */}
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 ring-white"
+          className="shrink-0 flex items-center justify-center w-5 h-8 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing rounded transition-colors opacity-0 group-hover:opacity-100"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onReorderStart?.(traveler.id, e.clientY);
+          }}
+          title="Arrastar para reordenar"
+        >
+          <GripVertical size={14} />
+        </div>
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 ring-white shrink-0"
           style={{ backgroundColor: traveler.color }}
         >
           {traveler.name.substring(0, 2).toUpperCase()}
