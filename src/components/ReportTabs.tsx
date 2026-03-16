@@ -10,7 +10,7 @@ import { ChecklistReport } from './ChecklistReport';
 type Tab = 'city' | 'transport' | 'attractions' | 'budget' | 'checklists';
 
 export function ReportTabs() {
-  const [activeTab, setActiveTab] = useState<Tab>('city');
+  const [activeTab, setActiveTab] = useState<Tab | null>(null);
 
   const tabs: { key: Tab; label: string; icon: typeof MapPin }[] = [
     { key: 'city', label: 'Time per City', icon: MapPin },
@@ -20,21 +20,28 @@ export function ReportTabs() {
     { key: 'checklists', label: 'Checklists', icon: ListChecks },
   ];
 
+  const isOpen = activeTab !== null;
+
+  function handleTabClick(key: Tab) {
+    setActiveTab(prev => prev === key ? null : key);
+  }
+
   return (
-    <div className="border-t border-slate-200 bg-white">
-      {/* Tabs */}
-      <div className="flex px-6 pt-3 gap-1">
+    <div className="border-t border-slate-200 bg-white shrink-0">
+      {/* Tabs — always visible */}
+      <div className="flex px-6 gap-1 py-1.5">
         {tabs.map(tab => {
           const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabClick(tab.key)}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-t-lg transition-colors",
-                activeTab === tab.key
-                  ? "bg-slate-50 text-slate-700 border border-b-0 border-slate-200"
-                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
+                "flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors",
+                isActive
+                  ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200"
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
               <Icon size={13} />
@@ -44,12 +51,19 @@ export function ReportTabs() {
         })}
       </div>
 
-      {/* Content */}
-      {activeTab === 'city' && <CityReport />}
-      {activeTab === 'transport' && <TransportReport />}
-      {activeTab === 'attractions' && <AttractionsReport />}
-      {activeTab === 'budget' && <BudgetReport />}
-      {activeTab === 'checklists' && <ChecklistReport />}
+      {/* Content — collapsible */}
+      <div
+        className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
+        style={{ maxHeight: isOpen ? '50vh' : '0px' }}
+      >
+        <div className="border-t border-slate-100">
+          {activeTab === 'city' && <CityReport />}
+          {activeTab === 'transport' && <TransportReport />}
+          {activeTab === 'attractions' && <AttractionsReport />}
+          {activeTab === 'budget' && <BudgetReport />}
+          {activeTab === 'checklists' && <ChecklistReport />}
+        </div>
+      </div>
     </div>
   );
 }
