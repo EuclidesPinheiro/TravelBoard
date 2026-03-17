@@ -3,14 +3,14 @@ import { useItinerary } from '../../store/ItineraryContext';
 import { CitySegment, TransportMode } from '../../types';
 import { getCityColor } from '../../utils/cityColors';
 import { v4 as uuidv4 } from 'uuid';
-import { Plane, TrainFront, Ship, Footprints, Car, Plus, Search } from 'lucide-react';
+import { Plane, TrainFront, Ship, Bus, Car, Plus, Search } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const TRANSPORT_OPTIONS: { mode: TransportMode; label: string; icon: typeof Plane; color: string }[] = [
   { mode: 'flight', label: 'Avião', icon: Plane, color: '#E74C3C' },
   { mode: 'train', label: 'Trem', icon: TrainFront, color: '#F39C12' },
   { mode: 'ferry', label: 'Barco', icon: Ship, color: '#1ABC9C' },
-  { mode: 'walking', label: 'A pé', icon: Footprints, color: '#8D6E63' },
+  { mode: 'bus', label: 'Ônibus', icon: Bus, color: '#27AE60' },
   { mode: 'car', label: 'Carro', icon: Car, color: '#9B59B6' },
 ];
 

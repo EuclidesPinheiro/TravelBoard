@@ -19,7 +19,7 @@ const MODE_LABELS: Record<string, string> = {
   flight: 'Avião',
   train: 'Trem',
   night_train: 'Night Train',
-  bus: 'Bus',
+  bus: 'Ônibus',
   car: 'Carro',
   ferry: 'Barco',
   walking: 'A pé',
