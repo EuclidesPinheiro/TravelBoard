@@ -201,7 +201,7 @@ export function LandingPage() {
                     Senha do Projeto
                   </label>
                   <input
-                    type="password"
+                    type="text"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Deixe em branco para sem senha"
