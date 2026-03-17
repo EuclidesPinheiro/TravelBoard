@@ -76,13 +76,15 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
         <div className="flex gap-1.5">
           {TRANSPORT_OPTIONS.map(opt => {
             const Icon = opt.icon;
-            const selected = segment.mode === opt.mode || (segment.mode === 'night_train' && opt.mode === 'train');
+            const selected = segment.mode === opt.mode || (segment.mode === 'night_train' && opt.mode === 'train') || (segment.mode === 'tour_bus' && opt.mode === 'bus');
             return (
               <button
                 key={opt.mode}
                 onClick={() => {
                   if (opt.mode === 'train' && segment.mode === 'night_train') {
                     updateSegment({ mode: 'night_train' });
+                  } else if (opt.mode === 'bus' && segment.mode === 'tour_bus') {
+                    updateSegment({ mode: 'tour_bus' });
                   } else {
                     updateSegment({ mode: opt.mode });
                   }
@@ -109,7 +111,7 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
         </div>
         {(segment.mode === 'train' || segment.mode === 'night_train') && (
           <div className="mt-3 flex items-center justify-between bg-slate-900/50 p-2 rounded-lg border border-slate-800">
-            <span className="text-xs text-slate-400 font-medium">Sleeper Train</span>
+            <span className="text-xs text-slate-400 font-medium">Sleeper</span>
             <button
               onClick={() => updateSegment({ mode: segment.mode === 'night_train' ? 'train' : 'night_train' })}
               className={cn(
@@ -121,6 +123,25 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
                 className={cn(
                   "absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform",
                   segment.mode === 'night_train' ? "translate-x-4" : "translate-x-0"
+                )}
+              />
+            </button>
+          </div>
+        )}
+        {(segment.mode === 'bus' || segment.mode === 'tour_bus') && (
+          <div className="mt-3 flex items-center justify-between bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+            <span className="text-xs text-slate-400 font-medium">Tour</span>
+            <button
+              onClick={() => updateSegment({ mode: segment.mode === 'tour_bus' ? 'bus' : 'tour_bus' })}
+              className={cn(
+                "w-8 h-4 rounded-full relative transition-colors",
+                segment.mode === 'tour_bus' ? "bg-indigo-500" : "bg-slate-700"
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform",
+                  segment.mode === 'tour_bus' ? "translate-x-4" : "translate-x-0"
                 )}
               />
             </button>

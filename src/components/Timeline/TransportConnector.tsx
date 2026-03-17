@@ -1,6 +1,7 @@
 import { TransportSegment, Traveler } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { cn } from '../../utils/cn';
+import { TRANSPORT_COLORS } from '../../utils/transportColors';
 
 interface TransportConnectorProps {
   key?: string;
@@ -9,16 +10,6 @@ interface TransportConnectorProps {
   left: number;
   width: number;
 }
-
-const TRANSPORT_COLORS: Record<string, string> = {
-  flight: '#E74C3C',
-  train: '#F39C12',
-  night_train: '#3498DB',
-  bus: '#27AE60',
-  car: '#9B59B6',
-  ferry: '#1ABC9C',
-  walking: '#8D6E63',
-};
 
 export function TransportConnector({ segment, traveler, left, width }: TransportConnectorProps) {
   const { setSelection, selection } = useItinerary();

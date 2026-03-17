@@ -1,5 +1,5 @@
 // src/types.ts
-export type TransportMode = 'flight' | 'train' | 'night_train' | 'bus' | 'car' | 'ferry' | 'walking';
+export type TransportMode = 'flight' | 'train' | 'night_train' | 'bus' | 'tour_bus' | 'car' | 'ferry' | 'walking';
 
 export interface Stay {
   id: string;
