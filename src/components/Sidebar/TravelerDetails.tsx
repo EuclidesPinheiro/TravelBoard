@@ -164,7 +164,7 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
             ...prev,
             travelers: [...prev.travelers, cloned],
           }));
-          setSelection({ type: 'traveler', travelerId: cloned.id });
+          setSelection([{ type: 'traveler', travelerId: cloned.id }]);
         }}
         className="w-full py-2 px-4 bg-slate-950 border border-indigo-800 text-indigo-400 hover:bg-indigo-900/40 hover:border-indigo-700 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
       >
@@ -190,7 +190,7 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
                   ...prev,
                   travelers: prev.travelers.filter(t => t.id !== traveler.id),
                 }));
-                setSelection(null);
+                setSelection([]);
               }}
               className="flex-1 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md text-xs transition-colors"
             >

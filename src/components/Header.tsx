@@ -119,7 +119,7 @@ export function Header() {
                     ...prev,
                     travelers: prev.travelers.map(t => ({ ...t, segments: [] })),
                   }));
-                  setSelection(null);
+                  setSelection([]);
                   setConfirmClear(false);
                 }}
                 className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded transition-colors"

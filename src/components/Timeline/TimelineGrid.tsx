@@ -7,16 +7,127 @@ import { cn } from '../../utils/cn';
 import { Plus, CalendarCog } from 'lucide-react';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditDatesModal } from '../Modals/EditDatesModal';
+import { SelectionItem } from '../../types';
 
 const ROW_HEIGHT = 72;
 
 export function TimelineGrid() {
-  const { itinerary, zoomLevel, setItinerary } = useItinerary();
+  const { itinerary, zoomLevel, setItinerary, setSelection } = useItinerary();
   const days = getTimelineDays(itinerary.startDate, itinerary.endDate);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
   const [isAddTravelerOpen, setIsAddTravelerOpen] = useState(false);
   const [isEditDatesOpen, setIsEditDatesOpen] = useState(false);
+
+  // --- Marquee Selection ---
+  const [marquee, setMarquee] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+  const marqueeRef = useRef<{ startX: number; startY: number; isMulti: boolean } | null>(null);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-city-block], [data-transport-connector], [data-add-transport-btn], [data-traveler-info], [data-sidebar], [data-popover], button, input, textarea')) return;
+
+    const rect = scrollRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const startX = e.clientX - rect.left + scrollRef.current!.scrollLeft;
+    const startY = e.clientY - rect.top + scrollRef.current!.scrollTop;
+    const isMulti = e.ctrlKey || e.metaKey || e.shiftKey;
+
+    marqueeRef.current = { startX, startY, isMulti };
+    setMarquee({ startX, startY, endX: startX, endY: startY });
+  }, []);
+
+  useEffect(() => {
+    if (!marquee) return;
+
+    function handleMouseMove(e: MouseEvent) {
+      if (!marqueeRef.current || !scrollRef.current) return;
+      const rect = scrollRef.current.getBoundingClientRect();
+      const endX = e.clientX - rect.left + scrollRef.current.scrollLeft;
+      const endY = e.clientY - rect.top + scrollRef.current.scrollTop;
+      setMarquee(prev => prev ? { ...prev, endX, endY } : null);
+    }
+
+    function handleMouseUp() {
+      if (marqueeRef.current && marquee) {
+        const { startX, startY, endX, endY } = marquee;
+        const x1 = Math.min(startX, endX);
+        const y1 = Math.min(startY, endY);
+        const x2 = Math.max(startX, endX);
+        const y2 = Math.max(startY, endY);
+
+        if (Math.abs(endX - startX) < 5 && Math.abs(endY - startY) < 5) {
+          if (!marqueeRef.current.isMulti) setSelection([]);
+          setMarquee(null);
+          marqueeRef.current = null;
+          return;
+        }
+
+        const selectedItems: SelectionItem[] = [];
+        const rect = scrollRef.current!.getBoundingClientRect();
+        
+        const selectRect = {
+          left: x1 - scrollRef.current!.scrollLeft + rect.left,
+          top: y1 - scrollRef.current!.scrollTop + rect.top,
+          right: x2 - scrollRef.current!.scrollLeft + rect.left,
+          bottom: y2 - scrollRef.current!.scrollTop + rect.top,
+        };
+
+        const elements = document.querySelectorAll('[data-city-block], [data-transport-connector], [data-traveler-row-header]');
+        elements.forEach(el => {
+          const elRect = el.getBoundingClientRect();
+          const intersects = !(
+            elRect.left > selectRect.right ||
+            elRect.right < selectRect.left ||
+            elRect.top > selectRect.bottom ||
+            elRect.bottom < selectRect.top
+          );
+
+          if (intersects) {
+            const travelerId = el.getAttribute('data-traveler-id');
+            const segmentId = el.getAttribute('data-segment-id');
+            const type = el.getAttribute('data-selection-type') as any;
+
+            if (type === 'traveler' && travelerId) {
+              selectedItems.push({ type: 'traveler', travelerId });
+            } else if (type === 'city' && travelerId && segmentId) {
+              selectedItems.push({ type: 'city', travelerId, segmentId });
+            } else if (type === 'transport' && travelerId && segmentId) {
+              selectedItems.push({ type: 'transport', travelerId, segmentId });
+            }
+          }
+        });
+
+        if (marqueeRef.current.isMulti) {
+          setSelection(prev => {
+            const next = [...prev];
+            selectedItems.forEach(item => {
+              const exists = next.some(s => 
+                s.type === item.type && 
+                (s as any).travelerId === (item as any).travelerId && 
+                ((s as any).segmentId === (item as any).segmentId)
+              );
+              if (!exists) next.push(item);
+            });
+            return next;
+          });
+        } else {
+          setSelection(selectedItems);
+        }
+      }
+      setMarquee(null);
+      marqueeRef.current = null;
+    }
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [marquee, setSelection]);
 
   // --- Drag-to-reorder state ---
   const dragRef = useRef<{
@@ -99,7 +210,12 @@ export function TimelineGrid() {
   }, [days, zoomLevel]);
 
   return (
-    <div className="flex-1 overflow-auto bg-slate-950 relative" id="timeline-grid" ref={scrollRef}>
+    <div 
+      className="flex-1 overflow-auto bg-slate-950 relative select-none" 
+      id="timeline-grid" 
+      ref={scrollRef}
+      onMouseDown={handleMouseDown}
+    >
       <div className="inline-block min-w-full">
         {/* Header Row (Dates) */}
         <div className="sticky top-0 z-30 flex bg-slate-950 border-b border-slate-700 shadow-sm">
@@ -195,6 +311,19 @@ export function TimelineGrid() {
         isOpen={isEditDatesOpen}
         onClose={() => setIsEditDatesOpen(false)}
       />
+
+      {/* Marquee Visual */}
+      {marquee && (
+        <div 
+          className="absolute border-2 border-indigo-500 bg-indigo-500/20 pointer-events-none z-[100]"
+          style={{
+            left: Math.min(marquee.startX, marquee.endX),
+            top: Math.min(marquee.startY, marquee.endY),
+            width: Math.abs(marquee.endX - marquee.startX),
+            height: Math.abs(marquee.endY - marquee.startY),
+          }}
+        />
+      )}
     </div>
   );
 }

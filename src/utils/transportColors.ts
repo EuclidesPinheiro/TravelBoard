@@ -1,13 +1,13 @@
 import { TransportMode } from "../types";
 
 export const TRANSPORT_COLORS: Record<TransportMode, string> = {
-  train: "#ff7a6b",
-  night_train: "#8e7cc3",
-  flight: "#4ea1ff",
-  ferry: "#1c7c7d",
-  bus: "#ffb366",
-  tour_bus: "#ffd966",
-  car: "#5cc48d",
+  train: "#ff453a",
+  night_train: "#6e5cff",
+  flight: "#3ea6ff",
+  ferry: "#00bfa5",
+  bus: "#ff9f0a",
+  tour_bus: "#a3e635",
+  car: "#249a3e",
   walking: "#8D6E63",
 };
 
