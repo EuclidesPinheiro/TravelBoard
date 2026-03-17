@@ -24,7 +24,7 @@ interface AddTransportPopoverProps {
 }
 
 export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCity, position, onClose }: AddTransportPopoverProps) {
-  const { itinerary, setItinerary } = useItinerary();
+  const { itinerary, setItinerary, paste } = useItinerary();
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const [mode, setMode] = useState<TransportMode>('flight');
@@ -157,15 +157,12 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
         <div className="flex gap-1.5">
           {TRANSPORT_OPTIONS.map(opt => {
             const Icon = opt.icon;
-            // Treat night_train as selected if mode is night_train and opt is train
-            // Treat tour_bus as selected if mode is tour_bus and opt is bus
             const selected = mode === opt.mode || (mode === 'night_train' && opt.mode === 'train') || (mode === 'tour_bus' && opt.mode === 'bus');
             return (
               <button
                 key={opt.mode}
                 onClick={() => {
                   if (opt.mode === 'train' && mode === 'night_train') {
-                    // keep it night_train if it was already
                     setMode('night_train');
                   } else if (opt.mode === 'bus' && mode === 'tour_bus') {
                     setMode('tour_bus');
@@ -306,6 +303,15 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
                   maxLength={30}
                   placeholder="Search or add city..."
                   className="bg-transparent text-sm text-slate-600 placeholder-slate-400 outline-none w-full"
+                  onKeyDown={e => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                      if (destSearch === '') {
+                        e.preventDefault();
+                        paste();
+                        onClose();
+                      }
+                    }
+                  }}
                 />
               </div>
             )}

@@ -26,7 +26,7 @@ export function TimelineGrid() {
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (target.closest('[data-city-block], [data-transport-connector], [data-add-transport-btn], [data-traveler-info], [data-sidebar], [data-popover], button, input, textarea')) return;
+    if (target.closest('[data-city-block], [data-transport-connector], [data-add-transport-btn], [data-traveler-info], [data-sidebar], [data-popover], [data-grid-cell], [data-traveler-row-header], button, input, textarea')) return;
 
     const rect = scrollRef.current?.getBoundingClientRect();
     if (!rect) return;

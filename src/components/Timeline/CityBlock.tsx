@@ -25,7 +25,7 @@ interface CityBlockProps {
 type DragType = "move" | "resize-left" | "resize-right";
 
 export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
-  const { setSelection, selection, setItinerary, zoomLevel } = useItinerary();
+  const { itinerary, setSelection, selection, setItinerary, zoomLevel, setFocusedCell } = useItinerary();
   const isSelected = selection.some(
     (s) => s.type === "city" && s.segmentId === segment.id,
   );
@@ -133,6 +133,14 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
       didDragRef.current = false;
       return;
     }
+
+    // Set focused cell
+    const dayIndex = differenceInDays(
+      startOfDay(parseISO(segment.startDate)),
+      startOfDay(parseISO(itinerary.startDate))
+    );
+    setFocusedCell({ travelerId: traveler.id, dayIndex });
+
     const isMulti = e.ctrlKey || e.metaKey;
     const item: SelectionItem = {
       type: "city",

@@ -34,6 +34,8 @@ export function TravelerRow({
     zoomLevel,
     setSelection,
     selection,
+    focusedCell,
+    setFocusedCell,
     highlightedTravelerId,
     setHighlightedTravelerId,
   } = useItinerary();
@@ -94,8 +96,11 @@ export function TravelerRow({
     return occupied;
   }, [traveler.segments, itineraryStart, days.length]);
 
-  function handleCellClick(dayIndex: number, e: React.MouseEvent) {
-    if (occupiedDays.has(dayIndex)) return;
+  function handleGridCellClick(dayIndex: number) {
+    setFocusedCell({ travelerId: traveler.id, dayIndex });
+  }
+
+  function handleEmptyCellClick(dayIndex: number, e: React.MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setPopover({
       dayIndex,
@@ -211,20 +216,26 @@ export function TravelerRow({
         className="flex relative isolate overflow-x-clip"
         style={{ width: days.length * zoomLevel }}
       >
-        {/* Background Grid Lines — clickable on empty cells */}
+        {/* Background Grid Lines — used for focus and empty cell clicks */}
         {days.map((day, i) => {
           const isEmpty = !occupiedDays.has(i);
+          const isFocused = focusedCell?.travelerId === traveler.id && focusedCell?.dayIndex === i;
           return (
             <div
               key={i}
+              data-grid-cell
               className={cn(
-                "absolute top-0 bottom-0 border-r border-slate-600 transition-colors",
-                isEmpty && "cursor-pointer hover:bg-indigo-900/40/40",
+                "absolute top-0 bottom-0 border-r border-slate-600 transition-colors cursor-pointer",
+                isEmpty && "hover:bg-indigo-900/40",
+                isFocused && "bg-indigo-500/30 ring-2 ring-inset ring-indigo-500/50 z-10"
               )}
               style={{ left: i * zoomLevel, width: zoomLevel }}
               onMouseEnter={() => onDayHover(i)}
               onMouseLeave={() => onDayHover(null)}
-              onClick={isEmpty ? (e) => handleCellClick(i, e) : undefined}
+              onClick={(e) => {
+                handleGridCellClick(i);
+                if (isEmpty) handleEmptyCellClick(i, e);
+              }}
             />
           );
         })}
