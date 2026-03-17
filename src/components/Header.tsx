@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
-import { Download, Plus, Save, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, Plus, Save, Trash2, Upload, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../utils/cn';
 import html2canvas from 'html2canvas';
 
@@ -31,6 +31,27 @@ export function Header() {
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
+  };
+
+  const importJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        if (json && typeof json === 'object' && 'travelers' in json) {
+          setItinerary(json);
+        } else {
+          alert("Invalid itinerary format");
+        }
+      } catch (err) {
+        console.error("Failed to parse JSON", err);
+        alert("Failed to parse JSON");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -113,6 +134,7 @@ export function Header() {
               </button>
             </div>
           )}
+
           <div className="flex items-center bg-slate-800 rounded-lg p-1 mr-2">
             <button onClick={handleZoomOut} className="p-1.5 hover:bg-slate-950 rounded-md text-slate-500 transition-colors" title="Zoom Out">
               <ZoomOut size={16} />
@@ -122,6 +144,12 @@ export function Header() {
               <ZoomIn size={16} />
             </button>
           </div>
+
+          <label className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-950 border border-slate-600 rounded-lg hover:bg-slate-900 transition-colors shadow-sm cursor-pointer">
+            <Upload size={16} />
+            Import JSON
+            <input type="file" accept=".json" className="hidden" onChange={importJSON} />
+          </label>
 
           <button onClick={exportJSON} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-950 border border-slate-600 rounded-lg hover:bg-slate-900 transition-colors shadow-sm">
             <Save size={16} />
