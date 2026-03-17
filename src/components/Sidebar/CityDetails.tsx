@@ -223,6 +223,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
       {/* Stays / Accommodation */}
       <StaysSection
         key={segment.id}
+        traveler={traveler}
         stays={stays}
         arrivalDate={arrivalDate}
         arrivalTime={arrivalTime}
@@ -317,6 +318,7 @@ interface SharedStayInfo {
 
 interface StaysSectionProps {
   key?: string;
+  traveler: Traveler;
   stays: Stay[];
   arrivalDate: string;
   arrivalTime: string;
@@ -342,7 +344,7 @@ function getDefaultTimes(arrDate: string, arrTime: string, depDate: string, depT
   return { checkIn, checkOut };
 }
 
-function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departureTime, cityMinDt, cityMaxDt, otherTravelers, sharedStaysFromOthers, onAdd, onRemove, onUpdate }: StaysSectionProps) {
+function StaysSection({ traveler, stays, arrivalDate, arrivalTime, departureDate, departureTime, cityMinDt, cityMaxDt, otherTravelers, sharedStaysFromOthers, onAdd, onRemove, onUpdate }: StaysSectionProps) {
   const defaults = getDefaultTimes(arrivalDate, arrivalTime, departureDate, departureTime);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -353,6 +355,8 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
   const [newCheckOutTime, setNewCheckOutTime] = useState(defaults.checkOut);
   const [newSharedWith, setNewSharedWith] = useState<string[]>([]);
   const [newCost, setNewCost] = useState('');
+  const [newPaidBy, setNewPaidBy] = useState<string>(traveler.id);
+  const [newPaidParts, setNewPaidParts] = useState<Record<string, boolean>>({});
 
   function resetForm() {
     const defs = getDefaultTimes(arrivalDate, arrivalTime, departureDate, departureTime);
@@ -364,6 +368,8 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
     setNewCheckOutTime(defs.checkOut);
     setNewSharedWith([]);
     setNewCost('');
+    setNewPaidBy(traveler.id);
+    setNewPaidParts({});
     setIsAdding(false);
   }
 
@@ -385,6 +391,8 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
       checkOutTime: newCheckOutTime,
       sharedWith: newSharedWith,
       cost: !isNaN(parsedCost) && parsedCost > 0 ? parsedCost : undefined,
+      paidBy: newPaidBy,
+      paidParts: newPaidParts,
     });
     resetForm();
   }
@@ -410,6 +418,7 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
       {stays.map(stay => (
         <StayCard
           key={stay.id}
+          traveler={traveler}
           stay={stay}
           otherTravelers={otherTravelers}
           cityMinDt={cityMinDt}
@@ -528,21 +537,37 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
             </div>
           </div>
 
+          <div>
+            <div className="text-xs text-slate-500 mb-1.5">Paid by</div>
+            <select
+              value={newPaidBy}
+              onChange={e => setNewPaidBy(e.target.value)}
+              className="w-full text-sm bg-slate-900 border border-slate-700 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-300"
+            >
+              {[traveler, ...otherTravelers].map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+
           {otherTravelers.length > 0 && (
             <div>
               <div className="text-xs text-slate-500 mb-1.5">Shared with</div>
               <div className="flex flex-wrap gap-1.5">
                 {otherTravelers.map(t => {
-                  const selected = newSharedWith.includes(t.id);
+                  const isPayer = t.id === newPaidBy;
+                  const selected = isPayer || newSharedWith.includes(t.id);
                   return (
                     <button
                       key={t.id}
-                      onClick={() => toggleShared(t.id)}
+                      onClick={() => !isPayer && toggleShared(t.id)}
+                      disabled={isPayer}
                       className={cn(
                         "flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-colors border",
                         selected
                           ? "border-indigo-700 bg-indigo-900/40 text-indigo-300"
-                          : "border-slate-700 bg-slate-950 text-slate-500 hover:bg-slate-900"
+                          : "border-slate-700 bg-slate-950 text-slate-500 hover:bg-slate-900",
+                        isPayer && "opacity-50 cursor-not-allowed"
                       )}
                     >
                       <div
@@ -558,6 +583,45 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
               </div>
             </div>
           )}
+
+          {(() => {
+            const sharers = [traveler, ...otherTravelers].filter(t => 
+              t.id !== newPaidBy && (t.id === traveler.id || newSharedWith.includes(t.id))
+            );
+
+            if (sharers.length === 0) return null;
+
+            return (
+              <div>
+                <div className="text-xs text-slate-500 mb-1.5">Paid his part:</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {sharers.map(t => {
+                    const hasPaid = newPaidParts[t.id] || false;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setNewPaidParts(prev => ({ ...prev, [t.id]: !hasPaid }))}
+                        className={cn(
+                          "flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-colors border",
+                          hasPaid
+                            ? "border-emerald-700 bg-emerald-900/40 text-emerald-300"
+                            : "border-slate-700 bg-slate-950 text-slate-500 hover:bg-slate-900"
+                        )}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] text-white font-bold"
+                          style={{ backgroundColor: t.color }}
+                        >
+                          {t.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        {t.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="flex gap-2 pt-1">
             <button
@@ -597,6 +661,7 @@ function StaysSection({ stays, arrivalDate, arrivalTime, departureDate, departur
 
 interface StayCardProps {
   key?: string;
+  traveler: Traveler;
   stay: Stay;
   otherTravelers: Traveler[];
   cityMinDt: string;
@@ -605,7 +670,7 @@ interface StayCardProps {
   onUpdate: (updater: (s: Stay) => Stay) => void;
 }
 
-function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpdate }: StayCardProps) {
+function StayCard({ traveler, stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpdate }: StayCardProps) {
   const sharedTravelers = otherTravelers.filter(t => stay.sharedWith.includes(t.id));
   const splitCount = 1 + stay.sharedWith.length;
   const perPerson = stay.cost ? stay.cost / splitCount : 0;
@@ -619,6 +684,8 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpda
   const [editCheckOutTime, setEditCheckOutTime] = useState(stay.checkOutTime);
   const [editCost, setEditCost] = useState(stay.cost?.toString() ?? '');
   const [editSharedWith, setEditSharedWith] = useState<string[]>(stay.sharedWith);
+  const [editPaidBy, setEditPaidBy] = useState<string>(stay.paidBy ?? traveler.id);
+  const [editPaidParts, setEditPaidParts] = useState<Record<string, boolean>>(stay.paidParts ?? {});
 
   function startEdit() {
     setEditName(stay.name);
@@ -629,6 +696,8 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpda
     setEditCheckOutTime(stay.checkOutTime);
     setEditCost(stay.cost?.toString() ?? '');
     setEditSharedWith([...stay.sharedWith]);
+    setEditPaidBy(stay.paidBy ?? traveler.id);
+    setEditPaidParts(stay.paidParts ?? {});
     setIsEditing(true);
   }
 
@@ -650,6 +719,8 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpda
       checkOutTime: editCheckOutTime,
       cost: !isNaN(parsedCost) && parsedCost > 0 ? parsedCost : undefined,
       sharedWith: editSharedWith,
+      paidBy: editPaidBy,
+      paidParts: editPaidParts,
     }));
     setIsEditing(false);
   }
@@ -717,21 +788,37 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpda
           </div>
         </div>
 
+        <div>
+          <div className="text-xs text-slate-500 mb-1.5">Paid by</div>
+          <select
+            value={editPaidBy}
+            onChange={e => setEditPaidBy(e.target.value)}
+            className="w-full text-sm bg-slate-900 border border-slate-700 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-300"
+          >
+            {[traveler, ...otherTravelers].map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
+
         {otherTravelers.length > 0 && (
           <div>
             <div className="text-xs text-slate-500 mb-1.5">Shared with</div>
             <div className="flex flex-wrap gap-1.5">
               {otherTravelers.map(t => {
-                const selected = editSharedWith.includes(t.id);
+                const isPayer = t.id === editPaidBy;
+                const selected = isPayer || editSharedWith.includes(t.id);
                 return (
                   <button
                     key={t.id}
-                    onClick={() => toggleEditShared(t.id)}
+                    onClick={() => !isPayer && toggleEditShared(t.id)}
+                    disabled={isPayer}
                     className={cn(
                       "flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-colors border",
                       selected
                         ? "border-indigo-700 bg-indigo-900/40 text-indigo-300"
-                        : "border-slate-700 bg-slate-950 text-slate-500 hover:bg-slate-900"
+                        : "border-slate-700 bg-slate-950 text-slate-500 hover:bg-slate-900",
+                      isPayer && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     <div
@@ -747,6 +834,45 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpda
             </div>
           </div>
         )}
+
+        {(() => {
+          const sharers = [traveler, ...otherTravelers].filter(t => 
+            t.id !== editPaidBy && (t.id === traveler.id || editSharedWith.includes(t.id))
+          );
+
+          if (sharers.length === 0) return null;
+
+          return (
+            <div>
+              <div className="text-xs text-slate-500 mb-1.5">Paid his part:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {sharers.map(t => {
+                  const hasPaid = editPaidParts[t.id] || false;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setEditPaidParts(prev => ({ ...prev, [t.id]: !hasPaid }))}
+                      className={cn(
+                        "flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-colors border",
+                        hasPaid
+                          ? "border-emerald-700 bg-emerald-900/40 text-emerald-300"
+                          : "border-slate-700 bg-slate-950 text-slate-500 hover:bg-slate-900"
+                      )}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] text-white font-bold"
+                        style={{ backgroundColor: t.color }}
+                      >
+                        {t.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      {t.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="flex gap-2 pt-1">
           <button
@@ -842,21 +968,64 @@ function StayCard({ stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpda
         )}
       </div>
 
-      {sharedTravelers.length > 0 && (
-        <div className="flex items-center gap-1.5 pt-1">
-          <span className="text-[10px] text-slate-500">with</span>
-          <div className="flex -space-x-1">
-            {sharedTravelers.map(t => (
-              <div
-                key={t.id}
-                className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] text-white font-bold ring-1 ring-white"
-                style={{ backgroundColor: t.color }}
-                title={t.name}
-              >
-                {t.name.substring(0, 2).toUpperCase()}
-              </div>
-            ))}
+      {(stay.cost != null || stay.paidBy) && (
+        <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-800">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-slate-500">Paid by:</span>
+            {(() => {
+              const payerId = stay.paidBy ?? traveler.id;
+              const payer = [traveler, ...otherTravelers].find(t => t.id === payerId);
+              if (!payer) return null;
+              return (
+                <div className="flex items-center gap-1">
+                  <div
+                    className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] text-white font-bold ring-1 ring-white"
+                    style={{ backgroundColor: payer.color }}
+                    title={payer.name}
+                  >
+                    {payer.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-[10px] text-slate-300">{payer.name}</span>
+                </div>
+              );
+            })()}
           </div>
+
+          {(() => {
+            const payerId = stay.paidBy ?? traveler.id;
+            const sharers = [traveler, ...otherTravelers].filter(t => 
+              t.id !== payerId && (t.id === traveler.id || stay.sharedWith.includes(t.id))
+            );
+            if (sharers.length === 0) return null;
+            
+            return (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-[10px] text-slate-500">Paid his part:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {sharers.map(t => {
+                    const hasPaid = stay.paidParts?.[t.id] ?? false;
+                    return (
+                      <div key={t.id} className="flex items-center gap-1 bg-slate-900 rounded-full pl-1 pr-1.5 py-0.5 border border-slate-700">
+                        <div className={cn(
+                          "w-3 h-3 rounded flex items-center justify-center text-[8px] text-white border",
+                          hasPaid ? "bg-emerald-500 border-emerald-600" : "bg-slate-800 border-slate-600"
+                        )}>
+                          {hasPaid && <div className="w-1.5 h-1.5 bg-white rounded-sm" />}
+                        </div>
+                        <div
+                          className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] text-white font-bold"
+                          style={{ backgroundColor: t.color }}
+                          title={t.name}
+                        >
+                          {t.name.substring(0, 2).toUpperCase()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
