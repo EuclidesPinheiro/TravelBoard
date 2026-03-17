@@ -11,6 +11,8 @@ export interface Stay {
   checkOutTime: string; // HH:mm
   sharedWith: string[]; // traveler IDs
   cost?: number; // total cost (split among owner + sharedWith)
+  paidBy?: string; // traveler ID who paid the whole amount
+  paidParts?: Record<string, boolean>; // true if the shared person has paid their part
 }
 
 export interface CitySegment {
