@@ -1,3 +1,4 @@
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useItinerary } from '../../store/ItineraryContext';
 import { getTimelineDays, formatDate } from '../../utils/dateUtils';
 import { isWeekend, isToday } from 'date-fns';
@@ -5,7 +6,6 @@ import { TravelerRow } from './TravelerRow';
 import { AddTravelerModal } from '../Modals/AddTravelerModal';
 import { cn } from '../../utils/cn';
 import { Plus, CalendarCog } from 'lucide-react';
-import { useRef, useEffect, useState, useCallback } from 'react';
 import { EditDatesModal } from '../Modals/EditDatesModal';
 import { SelectionItem } from '../../types';
 

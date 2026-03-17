@@ -234,47 +234,17 @@ export function TravelerRow({
           if (segment.type === "city") {
             const citySeg = segment as CitySegment;
 
-            // Find previous transport
-            const prevSeg = index > 0 ? traveler.segments[index - 1] : null;
-            let startFraction = 0;
-            let startOffsetDays = differenceInDays(
+            const startOffsetDays = differenceInDays(
               startOfDay(parseISO(citySeg.startDate)),
               itineraryStart,
             );
-
-            if (prevSeg && prevSeg.type === "transport") {
-              const trans = prevSeg as TransportSegment;
-              startOffsetDays = differenceInDays(
-                startOfDay(parseISO(trans.arrivalDate)),
-                itineraryStart,
-              );
-              const [h, m] = trans.arrivalTime.split(":").map(Number);
-              startFraction = (h + m / 60) / 24;
-            }
-
-            // Find next transport
-            const nextSeg =
-              index < traveler.segments.length - 1
-                ? traveler.segments[index + 1]
-                : null;
-            let endFraction = 1; // endDate is inclusive, block extends through end of that day
-            let endOffsetDays = differenceInDays(
+            const endOffsetDays = differenceInDays(
               startOfDay(parseISO(citySeg.endDate)),
               itineraryStart,
             );
 
-            if (nextSeg && nextSeg.type === "transport") {
-              const trans = nextSeg as TransportSegment;
-              endOffsetDays = differenceInDays(
-                startOfDay(parseISO(trans.departureDate)),
-                itineraryStart,
-              );
-              const [h, m] = trans.departureTime.split(":").map(Number);
-              endFraction = (h + m / 60) / 24;
-            }
-
-            const left = (startOffsetDays + startFraction) * zoomLevel;
-            const right = (endOffsetDays + endFraction) * zoomLevel;
+            const left = startOffsetDays * zoomLevel;
+            const right = (endOffsetDays + 1) * zoomLevel;
             const width = Math.max(0, right - left);
 
             if (right < 0 || left > days.length * zoomLevel) return null;
