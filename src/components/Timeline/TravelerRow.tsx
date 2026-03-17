@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Traveler, CitySegment, TransportSegment } from "../../types";
+import { Traveler, CitySegment, TransportSegment, SelectionItem } from "../../types";
 import { useItinerary } from "../../store/ItineraryContext";
 import { differenceInDays, parseISO, startOfDay } from "date-fns";
 import { CityBlock } from "./CityBlock";
@@ -113,6 +113,8 @@ export function TravelerRow({
     }
   }
 
+  const isSelected = selection.some(s => s.type === 'traveler' && s.travelerId === traveler.id);
+
   return (
     <div
       className={cn(
@@ -136,8 +138,12 @@ export function TravelerRow({
     >
       {/* Sticky Left Column */}
       <div
+        data-traveler-row-header
+        data-selection-type="traveler"
+        data-traveler-id={traveler.id}
         className={cn(
           "w-64 shrink-0 border-r border-slate-700 sticky left-0 z-20 flex items-center px-2 cursor-pointer transition-colors shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
+          isSelected ? "bg-indigo-950/50 ring-2 ring-inset ring-indigo-500/50" :
           isHighlighted
             ? "bg-slate-950"
             : isDimmed
@@ -178,7 +184,21 @@ export function TravelerRow({
           className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-slate-800 hover:bg-indigo-800/60 text-slate-500 hover:text-indigo-400 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
           onClick={(e) => {
             e.stopPropagation();
-            setSelection({ type: "traveler", travelerId: traveler.id });
+            const isMulti = e.ctrlKey || e.metaKey;
+            const item: SelectionItem = { type: "traveler", travelerId: traveler.id };
+            const isSelected = selection.some(s => s.type === 'traveler' && s.travelerId === traveler.id);
+            
+            if (isMulti) {
+              setSelection(prev => {
+                if (isSelected) {
+                  return prev.filter(s => !(s.type === 'traveler' && s.travelerId === traveler.id));
+                } else {
+                  return [...prev, item];
+                }
+              });
+            } else {
+              setSelection(isSelected && selection.length === 1 ? [] : [item]);
+            }
           }}
           title="View details"
         >

@@ -1,4 +1,5 @@
-import { TransportSegment, Traveler } from '../../types';
+import React from 'react';
+import { TransportSegment, Traveler, SelectionItem } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { cn } from '../../utils/cn';
 import { TRANSPORT_COLORS } from '../../utils/transportColors';
@@ -13,7 +14,7 @@ interface TransportConnectorProps {
 
 export function TransportConnector({ segment, traveler, left, width }: TransportConnectorProps) {
   const { setSelection, selection } = useItinerary();
-  const isSelected = selection?.type === 'transport' && selection.segmentId === segment.id;
+  const isSelected = selection.some(s => s.type === 'transport' && s.segmentId === segment.id);
   const color = TRANSPORT_COLORS[segment.mode] || '#95a5a6';
 
   return (
@@ -32,12 +33,30 @@ export function TransportConnector({ segment, traveler, left, width }: Transport
       {/* The connector block */}
       <div
         data-transport-connector
+        data-selection-type="transport"
+        data-traveler-id={traveler.id}
+        data-segment-id={segment.id}
         className={cn(
           "absolute top-1/2 -translate-y-1/2 left-0 right-0 h-4 rounded-sm border-2 border-slate-800 flex items-center justify-center cursor-pointer transition-all hover:shadow-md hover:scale-110",
           isSelected ? "ring-2 ring-offset-1 ring-slate-800" : "shadow-sm"
         )}
         style={{ backgroundColor: color }}
-        onClick={() => setSelection(isSelected ? null : { type: 'transport', travelerId: traveler.id, segmentId: segment.id })}
+        onClick={(e) => {
+          const isMulti = e.ctrlKey || e.metaKey;
+          const item: SelectionItem = { type: 'transport', travelerId: traveler.id, segmentId: segment.id };
+          if (isMulti) {
+            setSelection(prev => {
+              const exists = prev.some(s => s.type === 'transport' && s.segmentId === segment.id);
+              if (exists) {
+                return prev.filter(s => !(s.type === 'transport' && s.segmentId === segment.id));
+              } else {
+                return [...prev, item];
+              }
+            });
+          } else {
+            setSelection(isSelected && selection.length === 1 ? [] : [item]);
+          }
+        }}
         title={`${segment.mode}: ${segment.from} to ${segment.to} (${segment.departureTime} - ${segment.arrivalTime})`}
       />
     </div>

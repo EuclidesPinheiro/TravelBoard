@@ -81,8 +81,9 @@ export interface Itinerary {
   checklists?: Record<string, ChecklistItem[]>; // keyed by cityName
 }
 
-export type SelectionType =
+export type SelectionItem =
   | { type: 'traveler'; travelerId: string }
   | { type: 'city'; travelerId: string; segmentId: string }
-  | { type: 'transport'; travelerId: string; segmentId: string }
-  | null;
+  | { type: 'transport'; travelerId: string; segmentId: string };
+
+export type SelectionType = SelectionItem[];

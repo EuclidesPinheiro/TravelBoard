@@ -21,17 +21,27 @@ function useDeleteSelection() {
       // Don't delete if user is typing in an input
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if (!selection || (selection.type !== 'city' && selection.type !== 'transport')) return;
+      if (!selection || selection.length === 0) return;
 
-      const { travelerId, segmentId } = selection;
-      setItinerary(prev => ({
-        ...prev,
-        travelers: prev.travelers.map(t => {
-          if (t.id !== travelerId) return t;
-          return { ...t, segments: t.segments.filter(s => s.id !== segmentId) };
-        }),
-      }));
-      setSelection(null);
+      const travelersToDelete = selection.filter(s => s.type === 'traveler').map(s => s.travelerId);
+      const segmentsToDelete = selection.filter(s => s.type === 'city' || s.type === 'transport');
+      if (travelersToDelete.length === 0 && segmentsToDelete.length === 0) return;
+
+      setItinerary(prev => {
+        let newTravelers = prev.travelers.filter(t => !travelersToDelete.includes(t.id));
+        
+        segmentsToDelete.forEach(sel => {
+          if (sel.type === 'city' || sel.type === 'transport') {
+            newTravelers = newTravelers.map(t => {
+              if (t.id !== sel.travelerId) return t;
+              return { ...t, segments: t.segments.filter(s => s.id !== sel.segmentId) };
+            });
+          }
+        });
+        
+        return { ...prev, travelers: newTravelers };
+      });
+      setSelection([]);
     }
 
     window.addEventListener('keydown', handleKeyDown);
@@ -66,7 +76,7 @@ function useClickOutsideDeselect() {
   const { selection, setSelection } = useItinerary();
 
   useEffect(() => {
-    if (!selection) return;
+    if (!selection || selection.length === 0) return;
 
     function handleMouseDown(e: MouseEvent) {
       const target = e.target as HTMLElement;
@@ -79,7 +89,7 @@ function useClickOutsideDeselect() {
         target.closest('[data-add-transport-btn]') ||
         target.closest('[data-traveler-info]')
       ) return;
-      setSelection(null);
+      setSelection([]);
     }
 
     window.addEventListener('mousedown', handleMouseDown);

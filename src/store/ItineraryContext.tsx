@@ -146,7 +146,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [selection, setSelection] = useState<SelectionType>(null);
+  const [selection, setSelection] = useState<SelectionType>([]);
   const [highlightedTravelerId, setHighlightedTravelerId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(80);
 
@@ -309,7 +309,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
 
   const switchVersion = (index: number) => {
     setActiveVersionIndex(index);
-    setSelection(null);
+    setSelection([]);
   };
 
   const cloneVersion = useCallback(() => {
@@ -318,7 +318,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     const cloned = deepCloneItinerary(itinerary);
     setVersions(prev => [...prev, cloned]);
     setActiveVersionIndex(versions.length);
-    setSelection(null);
+    setSelection([]);
     scheduleSyncToSupabase();
   }, [itinerary, versions, safeIndex, pushUndo, scheduleSyncToSupabase]);
 
@@ -331,7 +331,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     if (activeVersionIndex >= index && activeVersionIndex > 0) {
       setActiveVersionIndex(prev => prev - 1);
     }
-    setSelection(null);
+    setSelection([]);
 
     // Delete from Supabase immediately
     await supabase.from('itinerary_versions').delete().eq('id', deletedId);
@@ -347,7 +347,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     skipSnapshotRef.current = true;
     setVersions(entry.versions);
     setActiveVersionIndex(entry.activeVersionIndex);
-    setSelection(null);
+    setSelection([]);
     skipSnapshotRef.current = false;
     setUndoRedoVersion(v => v + 1);
     scheduleSyncToSupabase();
@@ -361,7 +361,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     skipSnapshotRef.current = true;
     setVersions(entry.versions);
     setActiveVersionIndex(entry.activeVersionIndex);
-    setSelection(null);
+    setSelection([]);
     skipSnapshotRef.current = false;
     setUndoRedoVersion(v => v + 1);
     scheduleSyncToSupabase();

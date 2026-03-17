@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { CitySegment, Traveler } from "../../types";
+import { CitySegment, Traveler, SelectionItem } from "../../types";
 import { useItinerary } from "../../store/ItineraryContext";
 import { getCityColor } from "../../utils/cityColors";
 import { cn } from "../../utils/cn";
@@ -26,8 +26,9 @@ type DragType = "move" | "resize-left" | "resize-right";
 
 export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   const { setSelection, selection, setItinerary, zoomLevel } = useItinerary();
-  const isSelected =
-    selection?.type === "city" && selection.segmentId === segment.id;
+  const isSelected = selection.some(
+    (s) => s.type === "city" && s.segmentId === segment.id,
+  );
   const cityColor = getCityColor(segment.cityName);
   const hasStays = segment.stays && segment.stays.length > 0;
 
@@ -127,16 +128,34 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     window.addEventListener("mouseup", onMouseUp);
   }
 
-  function handleClick() {
+  function handleClick(e: React.MouseEvent) {
     if (didDragRef.current) {
       didDragRef.current = false;
       return;
     }
-    setSelection(
-      isSelected
-        ? null
-        : { type: "city", travelerId: traveler.id, segmentId: segment.id },
-    );
+    const isMulti = e.ctrlKey || e.metaKey;
+    const item: SelectionItem = {
+      type: "city",
+      travelerId: traveler.id,
+      segmentId: segment.id,
+    };
+
+    if (isMulti) {
+      setSelection((prev) => {
+        const exists = prev.some(
+          (s) => s.type === "city" && s.segmentId === segment.id,
+        );
+        if (exists) {
+          return prev.filter(
+            (s) => !(s.type === "city" && s.segmentId === segment.id),
+          );
+        } else {
+          return [...prev, item];
+        }
+      });
+    } else {
+      setSelection(isSelected && selection.length === 1 ? [] : [item]);
+    }
   }
 
   // Visual offset during drag
@@ -190,6 +209,9 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
       <div
         ref={blockRef}
         data-city-block
+        data-selection-type="city"
+        data-traveler-id={traveler.id}
+        data-segment-id={segment.id}
         className={cn(
           "absolute top-1/2 -translate-y-1/2 h-10 rounded-md shadow-sm border flex items-center justify-center cursor-pointer transition-shadow hover:shadow-md hover:z-10 overflow-hidden group",
           isSelected ? "ring-2 ring-indigo-500 z-10" : "border-slate-700/60",
