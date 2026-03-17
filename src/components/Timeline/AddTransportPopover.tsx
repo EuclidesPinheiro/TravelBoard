@@ -157,11 +157,19 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
         <div className="flex gap-1.5">
           {TRANSPORT_OPTIONS.map(opt => {
             const Icon = opt.icon;
-            const selected = mode === opt.mode;
+            // Treat night_train as selected if mode is night_train and opt is train
+            const selected = mode === opt.mode || (mode === 'night_train' && opt.mode === 'train');
             return (
               <button
                 key={opt.mode}
-                onClick={() => setMode(opt.mode)}
+                onClick={() => {
+                  if (opt.mode === 'train' && mode === 'night_train') {
+                    // keep it night_train if it was already
+                    setMode('night_train');
+                  } else {
+                    setMode(opt.mode);
+                  }
+                }}
                 className={cn(
                   "flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-all flex-1",
                   selected
@@ -182,6 +190,25 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
             );
           })}
         </div>
+        {(mode === 'train' || mode === 'night_train') && (
+          <div className="mt-3 flex items-center justify-between bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+            <span className="text-xs text-slate-400 font-medium">Sleeper Train</span>
+            <button
+              onClick={() => setMode(mode === 'night_train' ? 'train' : 'night_train')}
+              className={cn(
+                "w-8 h-4 rounded-full relative transition-colors",
+                mode === 'night_train' ? "bg-indigo-500" : "bg-slate-700"
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform",
+                  mode === 'night_train' ? "translate-x-4" : "translate-x-0"
+                )}
+              />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Departure */}

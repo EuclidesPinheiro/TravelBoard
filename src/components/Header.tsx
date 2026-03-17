@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
 import { Download, Plus, Save, Trash2, Upload, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../utils/cn';
