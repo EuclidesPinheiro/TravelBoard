@@ -14,7 +14,7 @@ interface AddCityPopoverProps {
 }
 
 export function AddCityPopover({ travelerId, date, position, onClose }: AddCityPopoverProps) {
-  const { itinerary, setItinerary } = useItinerary();
+  const { itinerary, setItinerary, paste } = useItinerary();
   const [search, setSearch] = useState('');
   const [stayDays, setStayDays] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -153,6 +153,15 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
             placeholder="Search or add city..."
             className="bg-transparent text-sm text-slate-600 placeholder-slate-400 outline-none w-full"
             onKeyDown={e => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                if (search === '') {
+                  e.preventDefault();
+                  paste();
+                  onClose();
+                  return;
+                }
+              }
+
               if (e.key === 'Enter') {
                 if (filtered.length === 1) {
                   addCity(filtered[0].name, filtered[0].country);

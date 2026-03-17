@@ -3,6 +3,7 @@ import { TransportSegment, Traveler, SelectionItem } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { cn } from '../../utils/cn';
 import { TRANSPORT_COLORS } from '../../utils/transportColors';
+import { differenceInDays, parseISO, startOfDay } from 'date-fns';
 
 interface TransportConnectorProps {
   key?: string;
@@ -13,7 +14,7 @@ interface TransportConnectorProps {
 }
 
 export function TransportConnector({ segment, traveler, left, width }: TransportConnectorProps) {
-  const { setSelection, selection } = useItinerary();
+  const { itinerary, setSelection, selection, setFocusedCell } = useItinerary();
   const isSelected = selection.some(s => s.type === 'transport' && s.segmentId === segment.id);
   const color = TRANSPORT_COLORS[segment.mode] || '#95a5a6';
 
@@ -42,6 +43,13 @@ export function TransportConnector({ segment, traveler, left, width }: Transport
         )}
         style={{ backgroundColor: color }}
         onClick={(e) => {
+          // Set focused cell
+          const dayIndex = differenceInDays(
+            startOfDay(parseISO(segment.departureDate)),
+            startOfDay(parseISO(itinerary.startDate))
+          );
+          setFocusedCell({ travelerId: traveler.id, dayIndex });
+
           const isMulti = e.ctrlKey || e.metaKey;
           const item: SelectionItem = { type: 'transport', travelerId: traveler.id, segmentId: segment.id };
           if (isMulti) {

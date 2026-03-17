@@ -73,34 +73,63 @@ function useUndoRedo() {
 }
 
 function useClickOutsideDeselect() {
-  const { selection, setSelection } = useItinerary();
+  const { selection, setSelection, focusedCell, setFocusedCell } = useItinerary();
 
   useEffect(() => {
-    if (!selection || selection.length === 0) return;
+    if ((!selection || selection.length === 0) && !focusedCell) return;
 
     function handleMouseDown(e: MouseEvent) {
       const target = e.target as HTMLElement;
-      // Don't deselect if clicking inside sidebar, a popover, a city block, transport connector, or the "+" button
+      // Don't deselect if clicking inside sidebar, a popover, a city block, transport connector, a grid cell, or the "+" button
       if (
         target.closest('[data-sidebar]') ||
         target.closest('[data-popover]') ||
         target.closest('[data-city-block]') ||
         target.closest('[data-transport-connector]') ||
         target.closest('[data-add-transport-btn]') ||
-        target.closest('[data-traveler-info]')
+        target.closest('[data-traveler-info]') ||
+        target.closest('[data-grid-cell]') ||
+        target.closest('[data-traveler-row-header]')
       ) return;
       setSelection([]);
+      setFocusedCell(null);
     }
 
     window.addEventListener('mousedown', handleMouseDown);
     return () => window.removeEventListener('mousedown', handleMouseDown);
-  }, [selection, setSelection]);
+  }, [selection, setSelection, focusedCell, setFocusedCell]);
+}
+
+function useCopyPaste() {
+  const { copy, paste } = useItinerary();
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        // Only prevent default if we actually handled it? 
+        // Actually, we should probably always let it go to system clipboard too if possible,
+        // but for our internal app logic we just call copy().
+        copy();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+        paste();
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [copy, paste]);
 }
 
 function AppContent() {
   useDeleteSelection();
   useUndoRedo();
   useClickOutsideDeselect();
+  useCopyPaste();
 
   return (
     <div className="flex flex-col h-screen bg-slate-900 font-sans text-slate-50 overflow-hidden">
