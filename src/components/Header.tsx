@@ -34,11 +34,11 @@ export function Header() {
   };
 
   return (
-      <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
+      <header className="h-16 bg-slate-950 border-b border-slate-700 flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
         <div className="flex items-center gap-4">
           <img src="/favicon.png" alt="TravelBoard" className="w-10 h-10 rounded-xl shadow-sm" />
           <div>
-            <h1 className="text-lg font-semibold text-slate-900 leading-tight">{itinerary.name}</h1>
+            <h1 className="text-lg font-semibold text-slate-50 leading-tight">{itinerary.name}</h1>
             <p className="text-xs text-slate-500 font-medium">
               {new Date(itinerary.startDate).toLocaleDateString()} - {new Date(itinerary.endDate).toLocaleDateString()}
             </p>
@@ -53,8 +53,8 @@ export function Header() {
                   className={cn(
                     "w-8 h-8 rounded-lg text-sm font-semibold transition-colors",
                     i === activeVersionIndex
-                      ? "bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300"
-                      : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+                      ? "bg-indigo-800/60 text-indigo-300 ring-1 ring-indigo-700"
+                      : "bg-slate-800 text-slate-500 hover:bg-slate-700 hover:text-slate-600"
                   )}
                 >
                   {i + 1}
@@ -72,7 +72,7 @@ export function Header() {
             ))}
             <button
               onClick={cloneVersion}
-              className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 hover:bg-indigo-100 hover:text-indigo-600 transition-colors flex items-center justify-center"
+              className="w-8 h-8 rounded-lg bg-slate-800 text-slate-500 hover:bg-indigo-800/60 hover:text-indigo-400 transition-colors flex items-center justify-center"
               title="Clone current version"
             >
               <Plus size={16} strokeWidth={2.5} />
@@ -84,13 +84,13 @@ export function Header() {
           {!confirmClear ? (
             <button
               onClick={() => setConfirmClear(true)}
-              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-900/40 rounded-lg transition-colors"
               title="Clear all cities and transports"
             >
               <Trash2 size={16} />
             </button>
           ) : (
-            <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+            <div className="flex items-center gap-1.5 bg-red-900/40 border border-red-800 rounded-lg px-2 py-1">
               <span className="text-xs text-red-600 font-medium whitespace-nowrap">Clear all?</span>
               <button
                 onClick={() => {
@@ -107,27 +107,27 @@ export function Header() {
               </button>
               <button
                 onClick={() => setConfirmClear(false)}
-                className="px-2 py-0.5 bg-white border border-slate-200 text-slate-600 text-xs font-medium rounded hover:bg-slate-50 transition-colors"
+                className="px-2 py-0.5 bg-slate-950 border border-slate-700 text-slate-500 text-xs font-medium rounded hover:bg-slate-900 transition-colors"
               >
                 No
               </button>
             </div>
           )}
-          <div className="flex items-center bg-slate-100 rounded-lg p-1 mr-2">
-            <button onClick={handleZoomOut} className="p-1.5 hover:bg-white rounded-md text-slate-600 transition-colors" title="Zoom Out">
+          <div className="flex items-center bg-slate-800 rounded-lg p-1 mr-2">
+            <button onClick={handleZoomOut} className="p-1.5 hover:bg-slate-950 rounded-md text-slate-500 transition-colors" title="Zoom Out">
               <ZoomOut size={16} />
             </button>
             <span className="text-xs font-medium px-2 text-slate-500 w-12 text-center">{zoomLevel}px</span>
-            <button onClick={handleZoomIn} className="p-1.5 hover:bg-white rounded-md text-slate-600 transition-colors" title="Zoom In">
+            <button onClick={handleZoomIn} className="p-1.5 hover:bg-slate-950 rounded-md text-slate-500 transition-colors" title="Zoom In">
               <ZoomIn size={16} />
             </button>
           </div>
 
-          <button onClick={exportJSON} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
+          <button onClick={exportJSON} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-950 border border-slate-600 rounded-lg hover:bg-slate-900 transition-colors shadow-sm">
             <Save size={16} />
             Save JSON
           </button>
-          <button onClick={exportPNG} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm">
+          <button onClick={exportPNG} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-indigo-500 rounded-lg hover:bg-indigo-400 transition-colors shadow-sm">
             <Download size={16} />
             Export PNG
           </button>

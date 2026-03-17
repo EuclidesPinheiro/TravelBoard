@@ -143,16 +143,16 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
     <div
       ref={popoverRef}
       data-popover
-      className="fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 w-72 overflow-hidden"
+      className="fixed z-50 bg-slate-950 rounded-xl shadow-xl border border-slate-700 w-72 overflow-hidden"
       style={{ left: position.x, top: position.y }}
     >
-      <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-        <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Add Transport</p>
-        <p className="text-xs text-slate-500 mt-0.5">from <span className="font-medium text-slate-700">{segment.cityName}</span></p>
+      <div className="px-4 py-3 border-b border-slate-800 bg-slate-900">
+        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Add Transport</p>
+        <p className="text-xs text-slate-500 mt-0.5">from <span className="font-medium text-slate-600">{segment.cityName}</span></p>
       </div>
 
       {/* Mode selector */}
-      <div className="px-4 py-3 border-b border-slate-100">
+      <div className="px-4 py-3 border-b border-slate-800">
         <div className="text-xs text-slate-500 mb-2">Transport mode</div>
         <div className="flex gap-1.5">
           {TRANSPORT_OPTIONS.map(opt => {
@@ -166,7 +166,7 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
                   "flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-all flex-1",
                   selected
                     ? "ring-2 shadow-sm"
-                    : "bg-slate-50 hover:bg-slate-100 text-slate-500"
+                    : "bg-slate-900 hover:bg-slate-800 text-slate-500"
                 )}
                 style={selected ? {
                   backgroundColor: `${opt.color}15`,
@@ -185,29 +185,29 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
       </div>
 
       {/* Departure */}
-      <div className="px-4 py-3 space-y-2 border-b border-slate-100">
-        <div className="text-xs font-medium text-slate-700">Departure</div>
+      <div className="px-4 py-3 space-y-2 border-b border-slate-800">
+        <div className="text-xs font-medium text-slate-600">Departure</div>
         <div className="flex gap-2">
           <input
             type="date"
             value={departureDate}
             onChange={e => setDepartureDate(e.target.value)}
-            className="flex-1 text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            className="flex-1 text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           <input
             type="time"
             value={departureTime}
             onChange={e => setDepartureTime(e.target.value)}
-            className="w-[90px] text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            className="w-[90px] text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
       </div>
 
       {/* Arrival — when next city exists */}
       {nextCity && (
-        <div className="px-4 py-3 space-y-2 border-b border-slate-100">
-          <div className="text-xs font-medium text-slate-700">
-            Arrival in <span className="text-indigo-600">{nextCity.cityName}</span>
+        <div className="px-4 py-3 space-y-2 border-b border-slate-800">
+          <div className="text-xs font-medium text-slate-600">
+            Arrival in <span className="text-indigo-400">{nextCity.cityName}</span>
           </div>
           <div className="flex gap-2">
             <input
@@ -215,13 +215,13 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
               value={arrivalDate}
               min={departureDate}
               onChange={e => setArrivalDate(e.target.value)}
-              className="flex-1 text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="flex-1 text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <input
               type="time"
               value={arrivalTime}
               onChange={e => setArrivalTime(e.target.value)}
-              className="w-[90px] text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="w-[90px] text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         </div>
@@ -229,34 +229,34 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
 
       {/* Destination picker — when no next city */}
       {!nextCity && (
-        <div className="border-b border-slate-100">
+        <div className="border-b border-slate-800">
           <div className="px-4 pt-3 pb-2">
-            <div className="text-xs font-medium text-slate-700 mb-2">Destination (optional)</div>
+            <div className="text-xs font-medium text-slate-600 mb-2">Destination (optional)</div>
 
             {selectedDest ? (
-              <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2">
                 <div
                   className="w-5 h-5 rounded-full shrink-0"
                   style={{ backgroundColor: `${getCityColor(selectedDest.name)}30`, border: `2px solid ${getCityColor(selectedDest.name)}` }}
                 />
-                <span className="text-sm font-medium text-slate-700 flex-1">{selectedDest.name}</span>
+                <span className="text-sm font-medium text-slate-600 flex-1">{selectedDest.name}</span>
                 <button
                   onClick={() => setSelectedDest(null)}
-                  className="text-xs text-slate-400 hover:text-red-500 transition-colors"
+                  className="text-xs text-slate-500 hover:text-red-400 transition-colors"
                 >
                   change
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2.5 py-1.5">
-                <Search size={14} className="text-slate-400 shrink-0" />
+              <div className="flex items-center gap-2 bg-slate-900 rounded-lg px-2.5 py-1.5">
+                <Search size={14} className="text-slate-500 shrink-0" />
                 <input
                   type="text"
                   value={destSearch}
                   onChange={e => setDestSearch(e.target.value)}
                   maxLength={30}
                   placeholder="Search or add city..."
-                  className="bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none w-full"
+                  className="bg-transparent text-sm text-slate-600 placeholder-slate-400 outline-none w-full"
                 />
               </div>
             )}
@@ -267,13 +267,13 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
             <div className="max-h-32 overflow-y-auto pb-1">
               {isNewCity && (
                 <button
-                  className="w-full flex items-center gap-2.5 px-4 py-1.5 hover:bg-indigo-50 transition-colors text-left"
+                  className="w-full flex items-center gap-2.5 px-4 py-1.5 hover:bg-indigo-900/40 transition-colors text-left"
                   onClick={() => selectDest(destSearch.trim(), '')}
                 >
-                  <div className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded-full bg-indigo-800/60 text-indigo-400 flex items-center justify-center">
                     <Plus size={10} strokeWidth={3} />
                   </div>
-                  <span className="text-xs text-slate-700">
+                  <span className="text-xs text-slate-600">
                     Add <span className="font-semibold">"{destSearch.trim()}"</span>
                   </span>
                 </button>
@@ -283,15 +283,15 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
                 return (
                   <button
                     key={city.name}
-                    className="w-full flex items-center gap-2.5 px-4 py-1.5 hover:bg-slate-50 transition-colors text-left"
+                    className="w-full flex items-center gap-2.5 px-4 py-1.5 hover:bg-slate-900 transition-colors text-left"
                     onClick={() => selectDest(city.name, city.country)}
                   >
                     <div
                       className="w-4 h-4 rounded-full shrink-0"
                       style={{ backgroundColor: `${color}30`, border: `2px solid ${color}` }}
                     />
-                    <span className="text-xs text-slate-700">{city.name}</span>
-                    {city.country && <span className="text-[10px] text-slate-400 ml-auto">{city.country}</span>}
+                    <span className="text-xs text-slate-600">{city.name}</span>
+                    {city.country && <span className="text-[10px] text-slate-500 ml-auto">{city.country}</span>}
                   </button>
                 );
               })}
@@ -301,8 +301,8 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
           {/* Arrival date/time — only when dest is selected */}
           {selectedDest && (
             <div className="px-4 pb-3 pt-2 space-y-2">
-              <div className="text-xs font-medium text-slate-700">
-                Arrival in <span className="text-indigo-600">{selectedDest.name}</span>
+              <div className="text-xs font-medium text-slate-600">
+                Arrival in <span className="text-indigo-400">{selectedDest.name}</span>
               </div>
               <div className="flex gap-2">
                 <input
@@ -310,13 +310,13 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
                   value={arrivalDate}
                   min={departureDate}
                   onChange={e => setArrivalDate(e.target.value)}
-                  className="flex-1 text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                  className="flex-1 text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
                 <input
                   type="time"
                   value={arrivalTime}
                   onChange={e => setArrivalTime(e.target.value)}
-                  className="w-[90px] text-sm bg-white border border-slate-200 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                  className="w-[90px] text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -332,8 +332,8 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
           className={cn(
             "w-full py-2 text-sm font-medium rounded-lg transition-colors",
             isValid
-              ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-              : "bg-slate-100 text-slate-400 cursor-not-allowed"
+              ? "bg-indigo-500 hover:bg-indigo-400 text-white"
+              : "bg-slate-800 text-slate-500 cursor-not-allowed"
           )}
         >
           Add Transport

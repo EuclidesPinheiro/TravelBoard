@@ -61,7 +61,7 @@ export function ChecklistReport() {
 
   if (cityChecklists.length === 0) {
     return (
-      <div className="px-6 py-8 text-center text-slate-400 text-sm">
+      <div className="px-6 py-8 text-center text-slate-500 text-sm">
         Nenhum checklist criado ainda. Selecione uma cidade na timeline para adicionar tarefas.
       </div>
     );
@@ -71,7 +71,7 @@ export function ChecklistReport() {
     <div className="px-6 py-4 max-h-[45vh] overflow-y-auto space-y-4">
       {/* Global progress */}
       <div className="flex items-center gap-3">
-        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-teal-400 rounded-full transition-all"
             style={{ width: `${globalTotal > 0 ? (globalDone / globalTotal) * 100 : 0}%` }}
@@ -86,15 +86,15 @@ export function ChecklistReport() {
       {cityChecklists.map(({ cityName, items, doneCount, totalCount }) => {
         const cityColor = getCityColor(cityName);
         return (
-          <div key={cityName} className="border border-slate-200 rounded-lg overflow-hidden">
+          <div key={cityName} className="border border-slate-700 rounded-lg overflow-hidden">
             {/* City header */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50">
+            <div className="flex items-center gap-2 px-3 py-2 bg-slate-900">
               <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: cityColor }} />
-              <span className="text-sm font-semibold text-slate-700 flex-1">{cityName}</span>
-              <span className="text-[10px] font-medium text-slate-400">
+              <span className="text-sm font-semibold text-slate-600 flex-1">{cityName}</span>
+              <span className="text-[10px] font-medium text-slate-500">
                 {doneCount}/{totalCount}
               </span>
-              <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-teal-400 rounded-full transition-all"
                   style={{ width: `${(doneCount / totalCount) * 100}%` }}
@@ -105,7 +105,7 @@ export function ChecklistReport() {
             {/* Items table */}
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400">
+                <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-500">
                   <th className="text-left font-semibold px-3 py-1.5">Tarefa</th>
                   <th className="text-left font-semibold px-3 py-1.5">Criado por</th>
                   {itinerary.travelers.map(t => (
@@ -130,12 +130,12 @@ export function ChecklistReport() {
                       key={item.id}
                       className={cn(
                         "border-b border-slate-50 last:border-b-0",
-                        allDone ? "bg-teal-50/40" : "hover:bg-slate-50/50"
+                        allDone ? "bg-teal-900/40/40" : "hover:bg-slate-900/50"
                       )}
                     >
                       <td className={cn(
                         "px-3 py-1.5",
-                        allDone && "text-slate-400 line-through"
+                        allDone && "text-slate-500 line-through"
                       )}>
                         {item.text}
                       </td>
@@ -151,7 +151,7 @@ export function ChecklistReport() {
                             <span className="text-xs text-slate-500 truncate">{addedBy.name}</span>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-300">—</span>
+                          <span className="text-xs text-slate-600">—</span>
                         )}
                       </td>
                       {itinerary.travelers.map(t => {
@@ -159,8 +159,8 @@ export function ChecklistReport() {
                         return (
                           <td key={t.id} className="text-center px-1.5 py-1.5">
                             {done
-                              ? <CheckSquare size={14} className="inline-block text-teal-500" />
-                              : <Square size={14} className="inline-block text-slate-300" />
+                              ? <CheckSquare size={14} className="inline-block text-teal-400" />
+                              : <Square size={14} className="inline-block text-slate-600" />
                             }
                           </td>
                         );

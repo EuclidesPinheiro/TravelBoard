@@ -27,7 +27,7 @@ export function ReportTabs() {
   }
 
   return (
-    <div className="border-t border-slate-200 bg-white shrink-0">
+    <div className="border-t border-slate-700 bg-slate-950 shrink-0">
       {/* Tabs — always visible */}
       <div className="flex px-6 gap-1 py-1.5">
         {tabs.map(tab => {
@@ -40,8 +40,8 @@ export function ReportTabs() {
               className={cn(
                 "flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors",
                 isActive
-                  ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200"
-                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  ? "bg-indigo-900/40 text-indigo-300 ring-1 ring-indigo-800"
+                  : "text-slate-500 hover:text-slate-500 hover:bg-slate-800"
               )}
             >
               <Icon size={13} />
@@ -56,7 +56,7 @@ export function ReportTabs() {
         className="overflow-hidden transition-[max-height] duration-300 ease-in-out"
         style={{ maxHeight: isOpen ? '50vh' : '0px' }}
       >
-        <div className="border-t border-slate-100">
+        <div className="border-t border-slate-800">
           {activeTab === 'city' && <CityReport />}
           {activeTab === 'transport' && <TransportReport />}
           {activeTab === 'attractions' && <AttractionsReport />}

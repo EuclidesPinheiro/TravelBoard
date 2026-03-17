@@ -122,17 +122,17 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
     <div
       ref={popoverRef}
       data-popover
-      className="fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 w-72 overflow-hidden"
+      className="fixed z-50 bg-slate-950 rounded-xl shadow-xl border border-slate-700 w-72 overflow-hidden"
       style={{ left: position.x, top: position.y }}
     >
-      <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
-        <p className="text-xs font-medium text-slate-500">Add city on <span className="text-slate-700">{dateLabel}</span></p>
+      <div className="px-4 py-3 border-b border-slate-800 bg-slate-900">
+        <p className="text-xs font-medium text-slate-500">Add city on <span className="text-slate-600">{dateLabel}</span></p>
         <div className="flex items-center gap-2 mt-2">
           <label className="text-xs text-slate-500">Stay:</label>
           <select
             value={stayDays}
             onChange={e => setStayDays(Number(e.target.value))}
-            className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            className="text-xs border border-slate-700 rounded-md px-2 py-1 bg-slate-950 text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             {Array.from({ length: 14 }, (_, i) => i + 1).map(n => (
               <option key={n} value={n}>{n} {n === 1 ? 'day' : 'days'}</option>
@@ -141,9 +141,9 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
         </div>
       </div>
 
-      <div className="px-3 py-2 border-b border-slate-100">
-        <div className="flex items-center gap-2 bg-slate-50 rounded-lg px-2.5 py-1.5">
-          <Search size={14} className="text-slate-400 shrink-0" />
+      <div className="px-3 py-2 border-b border-slate-800">
+        <div className="flex items-center gap-2 bg-slate-900 rounded-lg px-2.5 py-1.5">
+          <Search size={14} className="text-slate-500 shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -151,7 +151,7 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
             onChange={e => setSearch(e.target.value)}
             maxLength={30}
             placeholder="Search or add city..."
-            className="bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none w-full"
+            className="bg-transparent text-sm text-slate-600 placeholder-slate-400 outline-none w-full"
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 if (filtered.length === 1) {
@@ -170,13 +170,13 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
         {/* New city option */}
         {isNewCity && (
           <button
-            className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-indigo-50 transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-indigo-900/40 transition-colors text-left"
             onClick={handleNewCity}
           >
-            <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+            <div className="w-5 h-5 rounded-full bg-indigo-800/60 text-indigo-400 flex items-center justify-center">
               <Plus size={12} strokeWidth={3} />
             </div>
-            <span className="text-sm text-slate-700">
+            <span className="text-sm text-slate-600">
               Add <span className="font-semibold">"{search.trim()}"</span>
             </span>
           </button>
@@ -188,21 +188,21 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
           return (
             <button
               key={city.name}
-              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 transition-colors text-left"
+              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-slate-900 transition-colors text-left"
               onClick={() => addCity(city.name, city.country)}
             >
               <div
                 className="w-5 h-5 rounded-full shrink-0"
                 style={{ backgroundColor: `${color}30`, border: `2px solid ${color}` }}
               />
-              <span className="text-sm text-slate-700">{city.name}</span>
-              {city.country && <span className="text-xs text-slate-400 ml-auto">{city.country}</span>}
+              <span className="text-sm text-slate-600">{city.name}</span>
+              {city.country && <span className="text-xs text-slate-500 ml-auto">{city.country}</span>}
             </button>
           );
         })}
 
         {filtered.length === 0 && !isNewCity && (
-          <p className="px-4 py-3 text-xs text-slate-400 text-center">Type to search or add a city</p>
+          <p className="px-4 py-3 text-xs text-slate-500 text-center">Type to search or add a city</p>
         )}
       </div>
     </div>
