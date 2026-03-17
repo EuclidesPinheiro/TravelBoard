@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ItineraryProvider, useItinerary } from './store/ItineraryContext';
 import { Header } from './components/Header';
 import { TimelineGrid } from './components/Timeline/TimelineGrid';
 import { ReportTabs } from './components/ReportTabs';
 import { Sidebar } from './components/Sidebar/Sidebar';
+import { supabase } from './lib/supabase';
 
 function useDeleteSelection() {
   const { selection, setSelection, setItinerary } = useItinerary();
@@ -107,11 +108,98 @@ function AppContent() {
 
 export default function App() {
   const { boardId } = useParams<{ boardId: string }>();
+  const [loading, setLoading] = useState(true);
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [boardPassword, setBoardPassword] = useState<string | null>(null);
+  const [inputPassword, setInputPassword] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!boardId) return;
+
+    async function checkBoard() {
+      const { data, error } = await supabase
+        .from('boards')
+        .select('password')
+        .eq('id', boardId)
+        .single();
+
+      if (error || !data) {
+        setLoading(false);
+        return;
+      }
+
+      if (data.password) {
+        setBoardPassword(data.password);
+        const saved = localStorage.getItem(`travelboard_pwd_${boardId}`);
+        if (saved === data.password) {
+          setNeedsPassword(false);
+        } else {
+          setNeedsPassword(true);
+        }
+      } else {
+        setNeedsPassword(false);
+      }
+
+      setLoading(false);
+    }
+
+    checkBoard();
+  }, [boardId]);
+
+  function handlePasswordSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (inputPassword === boardPassword) {
+      localStorage.setItem(`travelboard_pwd_${boardId}`, inputPassword);
+      setNeedsPassword(false);
+      setError('');
+    } else {
+      setError('Senha incorreta.');
+    }
+  }
 
   if (!boardId) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <p className="text-slate-500">Board ID not found in URL.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4" />
+          <p className="text-slate-500">Verificando acesso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (needsPassword) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-slate-950 rounded-2xl shadow-lg p-8 max-w-sm w-full text-center border border-slate-800">
+          <h2 className="text-xl font-bold text-slate-50 mb-4">Projeto Protegido</h2>
+          <p className="text-slate-400 mb-6 text-sm">Este roteiro requer uma senha para ser acessado.</p>
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <input
+              type="password"
+              value={inputPassword}
+              onChange={(e) => setInputPassword(e.target.value)}
+              placeholder="Digite a senha"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {error && <p className="text-red-400 text-sm text-left">{error}</p>}
+            <button
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            >
+              Acessar
+            </button>
+          </form>
+        </div>
       </div>
     );
   }

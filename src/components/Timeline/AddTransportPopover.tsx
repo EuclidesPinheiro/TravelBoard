@@ -3,14 +3,14 @@ import { useItinerary } from '../../store/ItineraryContext';
 import { CitySegment, TransportMode } from '../../types';
 import { getCityColor } from '../../utils/cityColors';
 import { v4 as uuidv4 } from 'uuid';
-import { Plane, TrainFront, Ship, Footprints, Car, Plus, Search } from 'lucide-react';
+import { Plane, TrainFront, Ship, Bus, Car, Plus, Search } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const TRANSPORT_OPTIONS: { mode: TransportMode; label: string; icon: typeof Plane; color: string }[] = [
   { mode: 'flight', label: 'Avião', icon: Plane, color: '#E74C3C' },
   { mode: 'train', label: 'Trem', icon: TrainFront, color: '#F39C12' },
   { mode: 'ferry', label: 'Barco', icon: Ship, color: '#1ABC9C' },
-  { mode: 'walking', label: 'A pé', icon: Footprints, color: '#8D6E63' },
+  { mode: 'bus', label: 'Ônibus', icon: Bus, color: '#27AE60' },
   { mode: 'car', label: 'Carro', icon: Car, color: '#9B59B6' },
 ];
 
@@ -186,19 +186,19 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
 
       {/* Departure */}
       <div className="px-4 py-3 space-y-2 border-b border-slate-800">
-        <div className="text-xs font-medium text-slate-600">Departure</div>
+        <div className="text-xs font-medium text-slate-400">Departure time</div>
         <div className="flex gap-2">
           <input
             type="date"
             value={departureDate}
             onChange={e => setDepartureDate(e.target.value)}
-            className="flex-1 text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="flex-1 text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           <input
             type="time"
             value={departureTime}
             onChange={e => setDepartureTime(e.target.value)}
-            className="w-[90px] text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-[90px] text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
       </div>
@@ -215,13 +215,13 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
               value={arrivalDate}
               min={departureDate}
               onChange={e => setArrivalDate(e.target.value)}
-              className="flex-1 text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="flex-1 text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <input
               type="time"
               value={arrivalTime}
               onChange={e => setArrivalTime(e.target.value)}
-              className="w-[90px] text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-[90px] text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         </div>
@@ -310,13 +310,13 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
                   value={arrivalDate}
                   min={departureDate}
                   onChange={e => setArrivalDate(e.target.value)}
-                  className="flex-1 text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
                 <input
                   type="time"
                   value={arrivalTime}
                   onChange={e => setArrivalTime(e.target.value)}
-                  className="w-[90px] text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-[90px] text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
             </div>
