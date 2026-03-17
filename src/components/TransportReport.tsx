@@ -4,22 +4,14 @@ import { TransportSegment, TransportMode } from '../types';
 import { parseISO, differenceInMinutes } from 'date-fns';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '../utils/cn';
-
-const TRANSPORT_COLORS: Record<string, string> = {
-  flight: '#E74C3C',
-  train: '#F39C12',
-  night_train: '#3498DB',
-  bus: '#27AE60',
-  car: '#9B59B6',
-  ferry: '#1ABC9C',
-  walking: '#8D6E63',
-};
+import { TRANSPORT_COLORS } from '../utils/transportColors';
 
 const MODE_LABELS: Record<string, string> = {
   flight: 'Avião',
   train: 'Trem',
   night_train: 'Night Train',
   bus: 'Ônibus',
+  tour_bus: 'Tour',
   car: 'Carro',
   ferry: 'Barco',
   walking: 'A pé',

@@ -1,21 +1,23 @@
-import { TransportMode } from '../types';
+import { TransportMode } from "../types";
 
 export const TRANSPORT_COLORS: Record<TransportMode, string> = {
-  flight: '#E74C3C',
-  train: '#F39C12',
-  night_train: '#3498DB',
-  bus: '#27AE60',
-  car: '#9B59B6',
-  ferry: '#1ABC9C',
-  walking: '#8D6E63',
+  train: "#ff7a6b",
+  night_train: "#8e7cc3",
+  flight: "#4ea1ff",
+  ferry: "#1c7c7d",
+  bus: "#ffb366",
+  tour_bus: "#ffd966",
+  car: "#5cc48d",
+  walking: "#8D6E63",
 };
 
 export const TRANSPORT_LABELS: Record<TransportMode, string> = {
-  flight: 'Avião',
-  train: 'Trem',
-  night_train: 'Night Train',
-  bus: 'Ônibus',
-  car: 'Carro',
-  ferry: 'Barco',
-  walking: 'A pé',
+  flight: "Avião",
+  train: "Trem",
+  night_train: "Night Train",
+  bus: "Ônibus",
+  tour_bus: "Tour",
+  car: "Carro",
+  ferry: "Barco",
+  walking: "A pé",
 };
