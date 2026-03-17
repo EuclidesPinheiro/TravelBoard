@@ -186,19 +186,19 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
 
       {/* Departure */}
       <div className="px-4 py-3 space-y-2 border-b border-slate-800">
-        <div className="text-xs font-medium text-slate-600">Departure</div>
+        <div className="text-xs font-medium text-slate-400">Departure time</div>
         <div className="flex gap-2">
           <input
             type="date"
             value={departureDate}
             onChange={e => setDepartureDate(e.target.value)}
-            className="flex-1 text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="flex-1 text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           <input
             type="time"
             value={departureTime}
             onChange={e => setDepartureTime(e.target.value)}
-            className="w-[90px] text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-[90px] text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
       </div>
@@ -215,13 +215,13 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
               value={arrivalDate}
               min={departureDate}
               onChange={e => setArrivalDate(e.target.value)}
-              className="flex-1 text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="flex-1 text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <input
               type="time"
               value={arrivalTime}
               onChange={e => setArrivalTime(e.target.value)}
-              className="w-[90px] text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-[90px] text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         </div>
@@ -310,13 +310,13 @@ export function AddTransportPopover({ travelerId, segment, segmentIndex, nextCit
                   value={arrivalDate}
                   min={departureDate}
                   onChange={e => setArrivalDate(e.target.value)}
-                  className="flex-1 text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
                 <input
                   type="time"
                   value={arrivalTime}
                   onChange={e => setArrivalTime(e.target.value)}
-                  className="w-[90px] text-sm bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-[90px] text-sm text-slate-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
             </div>

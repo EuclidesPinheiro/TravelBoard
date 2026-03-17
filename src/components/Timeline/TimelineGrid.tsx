@@ -4,8 +4,9 @@ import { isWeekend, isToday } from 'date-fns';
 import { TravelerRow } from './TravelerRow';
 import { AddTravelerModal } from '../Modals/AddTravelerModal';
 import { cn } from '../../utils/cn';
-import { Plus } from 'lucide-react';
+import { Plus, CalendarCog } from 'lucide-react';
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { EditDatesModal } from '../Modals/EditDatesModal';
 
 const ROW_HEIGHT = 72;
 
@@ -15,6 +16,7 @@ export function TimelineGrid() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
   const [isAddTravelerOpen, setIsAddTravelerOpen] = useState(false);
+  const [isEditDatesOpen, setIsEditDatesOpen] = useState(false);
 
   // --- Drag-to-reorder state ---
   const dragRef = useRef<{
@@ -101,8 +103,15 @@ export function TimelineGrid() {
       <div className="inline-block min-w-full">
         {/* Header Row (Dates) */}
         <div className="sticky top-0 z-30 flex bg-slate-950 border-b border-slate-700 shadow-sm">
-          <div className="w-64 shrink-0 border-r border-slate-700 bg-slate-900 sticky left-0 z-40 flex items-center px-4 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+          <div className="w-64 shrink-0 border-r border-slate-700 bg-slate-900 sticky left-0 z-40 flex items-center justify-between px-4 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Travelers</span>
+            <button 
+              onClick={() => setIsEditDatesOpen(true)}
+              className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              title="Edit date range"
+            >
+              <CalendarCog size={16} />
+            </button>
           </div>
           <div className="flex">
             {days.map((day, i) => {
@@ -180,6 +189,11 @@ export function TimelineGrid() {
       <AddTravelerModal
         isOpen={isAddTravelerOpen}
         onClose={() => setIsAddTravelerOpen(false)}
+      />
+
+      <EditDatesModal
+        isOpen={isEditDatesOpen}
+        onClose={() => setIsEditDatesOpen(false)}
       />
     </div>
   );
