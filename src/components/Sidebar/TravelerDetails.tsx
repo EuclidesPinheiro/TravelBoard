@@ -49,7 +49,7 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
   return (
     <div className="space-y-6">
       {isEditing ? (
-        <div className="space-y-4 bg-slate-50 border border-slate-200 rounded-lg p-4">
+        <div className="space-y-4 bg-slate-900 border border-slate-700 rounded-lg p-4">
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Nome</label>
             <input
@@ -61,7 +61,7 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
                 if (e.key === 'Enter') saveEdit();
                 if (e.key === 'Escape') cancelEditing();
               }}
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               autoFocus
             />
           </div>
@@ -83,14 +83,14 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
             <button
               onClick={saveEdit}
               disabled={!editName.trim()}
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-md text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white font-medium rounded-md text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Check size={13} />
               Salvar
             </button>
             <button
               onClick={cancelEditing}
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium rounded-md text-xs transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-slate-950 border border-slate-700 text-slate-500 hover:bg-slate-900 font-medium rounded-md text-xs transition-colors"
             >
               <X size={13} />
               Cancelar
@@ -106,12 +106,12 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
             {traveler.name.substring(0, 2).toUpperCase()}
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-slate-900">{traveler.name}</h3>
+            <h3 className="text-lg font-bold text-slate-50">{traveler.name}</h3>
             <p className="text-sm text-slate-500">{cities.length} cities • {totalDays} days</p>
           </div>
           <button
             onClick={startEditing}
-            className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-md transition-colors"
+            className="p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-900/40 rounded-md transition-colors"
             title="Editar viajante"
           >
             <Pencil size={15} />
@@ -121,15 +121,15 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
 
       <div className="space-y-3">
         <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Itinerary Overview</h4>
-        <div className="relative border-l-2 border-slate-100 ml-3 space-y-4 pb-2">
+        <div className="relative border-l-2 border-slate-800 ml-3 space-y-4 pb-2">
           {traveler.segments.map((segment) => {
             if (segment.type === 'city') {
               const city = segment as CitySegment;
               const days = differenceInDays(parseISO(city.endDate), parseISO(city.startDate)) + 1;
               return (
                 <div key={segment.id} className="relative pl-4">
-                  <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-2 border-slate-300" style={{ borderColor: traveler.color }} />
-                  <div className="font-medium text-slate-800 text-sm">{city.cityName}</div>
+                  <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-950 border-2 border-slate-600" style={{ borderColor: traveler.color }} />
+                  <div className="font-medium text-slate-200 text-sm">{city.cityName}</div>
                   <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                     <Calendar size={12} />
                     {city.startDate.substring(5).replace('-', '/')} - {city.endDate.substring(5).replace('-', '/')} ({days} days)
@@ -166,7 +166,7 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
           }));
           setSelection({ type: 'traveler', travelerId: cloned.id });
         }}
-        className="w-full py-2 px-4 bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+        className="w-full py-2 px-4 bg-slate-950 border border-indigo-800 text-indigo-400 hover:bg-indigo-900/40 hover:border-indigo-700 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
       >
         <Copy size={14} />
         Duplicar Viajante
@@ -175,14 +175,14 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
       {!confirmDelete ? (
         <button
           onClick={() => setConfirmDelete(true)}
-          className="w-full py-2 px-4 bg-white border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 px-4 bg-slate-950 border border-red-800 text-red-400 hover:bg-red-900/40 hover:border-red-700 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
         >
           <Trash2 size={14} />
           Delete Traveler
         </button>
       ) : (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
-          <p className="text-xs text-red-700 font-medium">Remove {traveler.name} and all their cities/transports?</p>
+        <div className="bg-red-900/40 border border-red-800 rounded-lg p-3 space-y-2">
+          <p className="text-xs text-red-300 font-medium">Remove {traveler.name} and all their cities/transports?</p>
           <div className="flex gap-2">
             <button
               onClick={() => {
@@ -198,7 +198,7 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
             </button>
             <button
               onClick={() => setConfirmDelete(false)}
-              className="flex-1 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium rounded-md text-xs transition-colors"
+              className="flex-1 py-1.5 bg-slate-950 border border-slate-700 text-slate-500 hover:bg-slate-900 font-medium rounded-md text-xs transition-colors"
             >
               Cancel
             </button>

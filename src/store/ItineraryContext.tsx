@@ -382,7 +382,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4" />
           <p className="text-slate-500">Loading board...</p>
@@ -393,8 +393,8 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
 
   if (error || !itinerary) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="bg-slate-950 rounded-2xl shadow-lg p-8 max-w-md text-center">
           <p className="text-red-600 font-medium mb-2">Board not found</p>
           <p className="text-slate-500 text-sm">{error || 'No data available for this board.'}</p>
           <a href="/" className="inline-block mt-4 text-blue-600 hover:underline text-sm">

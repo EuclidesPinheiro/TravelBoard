@@ -92,7 +92,7 @@ function AppContent() {
   useClickOutsideDeselect();
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-900 font-sans text-slate-50 overflow-hidden">
       <Header />
       <div className="flex flex-1 overflow-hidden relative">
         <main className="flex-1 flex flex-col overflow-hidden">
@@ -110,7 +110,7 @@ export default function App() {
 
   if (!boardId) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <p className="text-slate-500">Board ID not found in URL.</p>
       </div>
     );

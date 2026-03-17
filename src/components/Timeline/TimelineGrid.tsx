@@ -97,11 +97,11 @@ export function TimelineGrid() {
   }, [days, zoomLevel]);
 
   return (
-    <div className="flex-1 overflow-auto bg-white relative" id="timeline-grid" ref={scrollRef}>
+    <div className="flex-1 overflow-auto bg-slate-950 relative" id="timeline-grid" ref={scrollRef}>
       <div className="inline-block min-w-full">
         {/* Header Row (Dates) */}
-        <div className="sticky top-0 z-30 flex bg-white border-b border-slate-200 shadow-sm">
-          <div className="w-64 shrink-0 border-r border-slate-200 bg-slate-50 sticky left-0 z-40 flex items-center px-4 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+        <div className="sticky top-0 z-30 flex bg-slate-950 border-b border-slate-700 shadow-sm">
+          <div className="w-64 shrink-0 border-r border-slate-700 bg-slate-900 sticky left-0 z-40 flex items-center px-4 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Travelers</span>
           </div>
           <div className="flex">
@@ -112,10 +112,10 @@ export function TimelineGrid() {
                 <div
                   key={i}
                   className={cn(
-                    "shrink-0 border-r border-slate-300 flex flex-col items-center justify-center py-2 transition-colors cursor-pointer",
-                    weekend && "bg-slate-50",
+                    "shrink-0 border-r border-slate-600 flex flex-col items-center justify-center py-2 transition-colors cursor-pointer",
+                    weekend && "bg-slate-900",
                     today && "bg-blue-50/50",
-                    hoveredDay === i && "bg-slate-100"
+                    hoveredDay === i && "bg-slate-800"
                   )}
                   style={{ width: zoomLevel }}
                   onMouseEnter={() => setHoveredDay(i)}
@@ -124,7 +124,7 @@ export function TimelineGrid() {
                   <span className={cn("text-[10px] font-medium uppercase tracking-wider", today ? "text-blue-600" : "text-slate-500")}>
                     {formatDate(day, 'EEE')}
                   </span>
-                  <span className={cn("text-sm font-semibold", today ? "text-blue-700" : (weekend ? "text-slate-700" : "text-slate-900"))}>
+                  <span className={cn("text-sm font-semibold", today ? "text-blue-700" : (weekend ? "text-slate-600" : "text-slate-50"))}>
                     {formatDate(day, 'dd/MM')}
                   </span>
                 </div>
@@ -161,12 +161,12 @@ export function TimelineGrid() {
 
           {/* Add Traveler Row */}
           <div
-            className="flex h-[52px] border border-slate-200 hover:bg-indigo-50/40 cursor-pointer transition-colors group"
+            className="flex h-[52px] border border-slate-700 hover:bg-indigo-900/40/40 cursor-pointer transition-colors group"
             onClick={() => setIsAddTravelerOpen(true)}
           >
-            <div className="w-64 shrink-0 sticky left-0 z-20 bg-white group-hover:bg-indigo-50/40 border-r border-slate-200 transition-colors flex items-center justify-center shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center gap-2 text-indigo-300 group-hover:text-indigo-500 transition-colors">
-                <div className="w-7 h-7 rounded-full bg-indigo-50 group-hover:bg-indigo-100 flex items-center justify-center transition-colors">
+            <div className="w-64 shrink-0 sticky left-0 z-20 bg-slate-950 group-hover:bg-indigo-900/40/40 border-r border-slate-700 transition-colors flex items-center justify-center shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+              <div className="flex items-center gap-2 text-indigo-300 group-hover:text-indigo-400 transition-colors">
+                <div className="w-7 h-7 rounded-full bg-indigo-900/40 group-hover:bg-indigo-800/60 flex items-center justify-center transition-colors">
                   <Plus size={14} strokeWidth={2.5} />
                 </div>
                 <span className="text-xs font-medium">Add Traveler</span>

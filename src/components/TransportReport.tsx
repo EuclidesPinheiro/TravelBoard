@@ -102,9 +102,9 @@ export function TransportReport() {
   if (transportData.length === 0) return null;
 
   return (
-    <div className="bg-slate-50 px-6 py-4 max-h-[45vh] overflow-y-auto">
+    <div className="bg-slate-900 px-6 py-4 max-h-[45vh] overflow-y-auto">
       {highlightedTraveler && (
-        <p className="text-xs font-medium text-slate-400 mb-3">
+        <p className="text-xs font-medium text-slate-500 mb-3">
           Showing: {highlightedTraveler.name}
         </p>
       )}
@@ -120,30 +120,30 @@ export function TransportReport() {
               <button
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left group",
-                  isExpanded ? "bg-slate-50" : "hover:bg-slate-50"
+                  isExpanded ? "bg-slate-900" : "hover:bg-slate-900"
                 )}
                 onClick={() => !highlightedTravelerId && setExpandedMode(isExpanded ? null : transport.mode)}
               >
                 {!highlightedTravelerId && (
-                  <div className="flex items-center gap-1 text-slate-400">
+                  <div className="flex items-center gap-1 text-slate-500">
                     {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   </div>
                 )}
-                <span className="text-sm font-medium text-slate-700 w-28 shrink-0 truncate">
+                <span className="text-sm font-medium text-slate-600 w-28 shrink-0 truncate">
                   {MODE_LABELS[transport.mode] || transport.mode}
                 </span>
-                <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
+                <div className="flex-1 h-6 bg-slate-800 rounded overflow-hidden">
                   <div
                     className="h-full rounded flex items-center px-2 transition-all"
                     style={{ width: `${Math.max(barWidth, 8)}%`, backgroundColor: `${modeColor}30`, borderLeft: `3px solid ${modeColor}` }}
                   >
-                    <span className="text-xs font-semibold text-slate-600 whitespace-nowrap">
+                    <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">
                       {formatHours(transport.totalHours)}
                     </span>
                   </div>
                 </div>
                 {!highlightedTravelerId && (
-                  <span className="text-xs text-slate-400 shrink-0">
+                  <span className="text-xs text-slate-500 shrink-0">
                     {transport.travelers.length} {transport.travelers.length === 1 ? 'traveler' : 'travelers'}
                   </span>
                 )}
@@ -162,14 +162,14 @@ export function TransportReport() {
                           >
                             {t.name.substring(0, 2).toUpperCase()}
                           </div>
-                          <span className="text-xs text-slate-600 truncate">{t.name}</span>
+                          <span className="text-xs text-slate-500 truncate">{t.name}</span>
                         </div>
-                        <div className="flex-1 h-4 bg-slate-100 rounded overflow-hidden">
+                        <div className="flex-1 h-4 bg-slate-800 rounded overflow-hidden">
                           <div
                             className="h-full rounded flex items-center px-1.5 transition-all"
                             style={{ width: `${Math.max(tBarWidth, 8)}%`, backgroundColor: `${t.color}30`, borderLeft: `2px solid ${t.color}` }}
                           >
-                            <span className="text-[10px] font-medium text-slate-600 whitespace-nowrap">
+                            <span className="text-[10px] font-medium text-slate-500 whitespace-nowrap">
                               {formatHours(t.hours)}
                             </span>
                           </div>
