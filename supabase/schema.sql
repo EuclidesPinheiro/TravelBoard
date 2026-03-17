@@ -4,6 +4,7 @@
 -- Table: boards (one per shared trip link)
 create table boards (
   id uuid primary key default gen_random_uuid(),
+  password text,
   created_at timestamptz default now()
 );
 
