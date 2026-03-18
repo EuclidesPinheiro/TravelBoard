@@ -16,7 +16,36 @@ interface AddCityPopoverProps {
 export function AddCityPopover({ travelerId, date, position, onClose }: AddCityPopoverProps) {
   const { itinerary, setItinerary, paste } = useItinerary();
   const [search, setSearch] = useState('');
-  const [stayDays, setStayDays] = useState(1);
+
+  // Suggested times based on existing cities on the same day
+  const { startTime, endTime } = useMemo(() => {
+    const traveler = itinerary.travelers.find((t) => t.id === travelerId);
+    if (!traveler) return { startTime: '00:00', endTime: '23:59' };
+
+    const dayStr = format(date, 'yyyy-MM-dd');
+
+    let start = '00:00';
+    let end = '23:59';
+
+    // Find city ending on this day
+    const cityEndingToday = traveler.segments.find(s => 
+      s.type === 'city' && (s as CitySegment).endDate === dayStr
+    ) as CitySegment;
+    if (cityEndingToday) {
+      start = cityEndingToday.endTime || '00:00';
+    }
+
+    // Find city starting on this day (excluding the one that ends today if it's the same)
+    const cityStartingToday = traveler.segments.find(s => 
+      s.type === 'city' && (s as CitySegment).startDate === dayStr && s.id !== cityEndingToday?.id
+    ) as CitySegment;
+    if (cityStartingToday) {
+      end = cityStartingToday.startTime || '23:59';
+    }
+
+    return { startTime: start, endTime: end };
+  }, [itinerary, travelerId, date]);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -57,56 +86,58 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
   }, [onClose]);
 
   function addCity(cityName: string, country: string) {
-    const startDate = format(date, 'yyyy-MM-dd');
-    const endDate = format(addDays(date, stayDays - 1), 'yyyy-MM-dd');
+    const dateStr = format(date, "yyyy-MM-dd");
+
+    const newStartDt = `${dateStr}T${startTime}`;
+    const newEndDt = `${dateStr}T${endTime}`;
+
+    if (newStartDt >= newEndDt) {
+      alert("Start time must be before end time.");
+      return;
+    }
 
     // Ensure color is generated for new cities
     getCityColor(cityName);
 
     const newSegment: CitySegment = {
-      type: 'city',
+      type: "city",
       id: uuidv4(),
       cityName,
       country,
-      startDate,
-      endDate,
+      startDate: dateStr,
+      startTime: startTime,
+      endDate: dateStr,
+      endTime: endTime,
     };
 
-    setItinerary(prev => ({
-      ...prev,
-      travelers: prev.travelers.map(t => {
-        if (t.id !== travelerId) return t;
+    setItinerary((prev) => {
+      const traveler = prev.travelers.find((t) => t.id === travelerId);
+      if (!traveler) return prev;
 
-        // Insert segment in chronological order
-        const segments = [...t.segments];
-        const insertIdx = segments.findIndex(s => {
-          if (s.type === 'city') return (s as CitySegment).startDate > startDate;
-          return false;
-        });
+      // VALIDATION: Check for overlaps with existing CITIES
+      const hasOverlap = traveler.segments.some((s) => {
+        if (s.type !== "city") return false;
+        const other = s as CitySegment;
+        const otherStart = `${other.startDate}T${other.startTime || "00:00"}`;
+        const otherEnd = `${other.endDate}T${other.endTime || "23:59"}`;
 
-        if (insertIdx === -1) {
-          segments.push(newSegment);
-        } else {
-          segments.splice(insertIdx, 0, newSegment);
-        }
+        // (StartA < EndB) and (EndA > StartB)
+        return newStartDt < otherEnd && newEndDt > otherStart;
+      });
 
-        // Connect empty transport before this city if it exists
-        const newCityIdx = segments.findIndex(s => s.id === newSegment.id);
-        if (newCityIdx > 0) {
-          const prevSeg = segments[newCityIdx - 1];
-          if (prevSeg.type === 'transport' && (prevSeg as any).to === '...') {
-            segments[newCityIdx - 1] = {
-              ...prevSeg,
-              to: cityName,
-              arrivalDate: startDate,
-              arrivalTime: '00:00',
-            };
-          }
-        }
+      if (hasOverlap) {
+        alert("This city overlaps with an existing city stay.");
+        return prev;
+      }
 
-        return { ...t, segments };
-      }),
-    }));
+      return {
+        ...prev,
+        travelers: prev.travelers.map((t) => {
+          if (t.id !== travelerId) return t;
+          return { ...t, segments: [...t.segments, newSegment] };
+        }),
+      };
+    });
 
     onClose();
   }
@@ -116,7 +147,24 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
     addCity(search.trim(), '');
   }
 
-  const dateLabel = format(date, 'dd/MM (EEE)');
+  const dateLabel = format(date, "dd/MM (EEE)");
+
+  const hasOverlap = useMemo(() => {
+    const traveler = itinerary.travelers.find((t) => t.id === travelerId);
+    if (!traveler) return false;
+
+    const dateStr = format(date, "yyyy-MM-dd");
+    const startDt = `${dateStr}T${startTime}`;
+    const endDt = `${dateStr}T${endTime}`;
+
+    return traveler.segments.some((s) => {
+      if (s.type !== "city") return false;
+      const other = s as CitySegment;
+      const otherStart = `${other.startDate}T${other.startTime || "00:00"}`;
+      const otherEnd = `${other.endDate}T${other.endTime || "23:59"}`;
+      return startDt < otherEnd && endDt > otherStart;
+    });
+  }, [itinerary, travelerId, date, startTime, endTime]);
 
   return (
     <div
@@ -126,19 +174,21 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
       style={{ left: position.x, top: position.y }}
     >
       <div className="px-4 py-3 border-b border-slate-800 bg-slate-900">
-        <p className="text-xs font-medium text-slate-500">Add city on <span className="text-slate-600">{dateLabel}</span></p>
-        <div className="flex items-center gap-2 mt-2">
-          <label className="text-xs text-slate-500">Stay:</label>
-          <select
-            value={stayDays}
-            onChange={e => setStayDays(Number(e.target.value))}
-            className="text-xs border border-slate-700 rounded-md px-2 py-1 bg-slate-950 text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            {Array.from({ length: 14 }, (_, i) => i + 1).map(n => (
-              <option key={n} value={n}>{n} {n === 1 ? 'day' : 'days'}</option>
-            ))}
-          </select>
+        <p className="text-xs font-medium text-slate-500">
+          Add city on <span className="text-slate-600">{dateLabel}</span>
+        </p>
+
+        <div className="flex items-center gap-2 mt-3">
+           <p className="text-[10px] text-slate-500 font-medium">
+             Times: <span className="text-slate-400">{startTime} — {endTime}</span>
+           </p>
         </div>
+
+        {hasOverlap && (
+          <p className="text-[10px] text-red-500 mt-2 font-medium">
+            ⚠️ Overlaps with an existing stay
+          </p>
+        )}
       </div>
 
       <div className="px-3 py-2 border-b border-slate-800">
@@ -148,13 +198,14 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
             ref={inputRef}
             type="text"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             maxLength={30}
-            placeholder="Search or add city..."
-            className="bg-transparent text-sm text-slate-600 placeholder-slate-400 outline-none w-full"
-            onKeyDown={e => {
-              if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-                if (search === '') {
+            disabled={hasOverlap}
+            placeholder={hasOverlap ? "Select a different time..." : "Search or add city..."}
+            className="bg-transparent text-sm text-slate-600 placeholder-slate-400 outline-none w-full disabled:cursor-not-allowed"
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+                if (search === "") {
                   e.preventDefault();
                   paste();
                   onClose();
@@ -162,14 +213,14 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
                 }
               }
 
-              if (e.key === 'Enter') {
+              if (e.key === "Enter" && !hasOverlap) {
                 if (filtered.length === 1) {
                   addCity(filtered[0].name, filtered[0].country);
                 } else if (isNewCity) {
                   handleNewCity();
                 }
               }
-              if (e.key === 'Escape') onClose();
+              if (e.key === "Escape") onClose();
             }}
           />
         </div>
@@ -179,7 +230,8 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
         {/* New city option */}
         {isNewCity && (
           <button
-            className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-indigo-900/40 transition-colors text-left"
+            disabled={hasOverlap}
+            className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-indigo-900/40 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleNewCity}
           >
             <div className="w-5 h-5 rounded-full bg-indigo-800/60 text-indigo-400 flex items-center justify-center">
@@ -192,26 +244,36 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
         )}
 
         {/* Existing cities */}
-        {filtered.map(city => {
+        {filtered.map((city) => {
           const color = getCityColor(city.name);
           return (
             <button
               key={city.name}
-              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-slate-900 transition-colors text-left"
+              disabled={hasOverlap}
+              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-slate-900 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => addCity(city.name, city.country)}
             >
               <div
                 className="w-5 h-5 rounded-full shrink-0"
-                style={{ backgroundColor: `${color}30`, border: `2px solid ${color}` }}
+                style={{
+                  backgroundColor: `${color}30`,
+                  border: `2px solid ${color}`,
+                }}
               />
               <span className="text-sm text-slate-600">{city.name}</span>
-              {city.country && <span className="text-xs text-slate-500 ml-auto">{city.country}</span>}
+              {city.country && (
+                <span className="text-xs text-slate-500 ml-auto">
+                  {city.country}
+                </span>
+              )}
             </button>
           );
         })}
 
         {filtered.length === 0 && !isNewCity && (
-          <p className="px-4 py-3 text-xs text-slate-500 text-center">Type to search or add a city</p>
+          <p className="px-4 py-3 text-xs text-slate-500 text-center">
+            {hasOverlap ? "Date unavailable" : "Type to search or add a city"}
+          </p>
         )}
       </div>
     </div>

@@ -5,7 +5,6 @@ import { useItinerary } from "../../store/ItineraryContext";
 import { getCityColor } from "../../utils/cityColors";
 import { cn } from "../../utils/cn";
 import { Home, Plus } from "lucide-react";
-import { AddTransportPopover } from "./AddTransportPopover";
 import {
   addDays,
   parseISO,
@@ -67,31 +66,61 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
       ...prev,
       travelers: prev.travelers.map((t) => {
         if (t.id !== traveler.id) return t;
-        return {
-          ...t,
-          segments: t.segments.map((s) => {
-            if (s.id !== segment.id) return s;
-            const city = s as CitySegment;
-            const start = parseISO(city.startDate);
-            const end = parseISO(city.endDate);
+        const newSegments = [...t.segments];
+        const segIdx = newSegments.findIndex((s) => s.id === segment.id);
+        if (segIdx === -1) return t;
 
-            if (type === "move") {
-              return {
-                ...city,
-                startDate: format(addDays(start, daysDelta), "yyyy-MM-dd"),
-                endDate: format(addDays(end, daysDelta), "yyyy-MM-dd"),
+        const city = newSegments[segIdx] as CitySegment;
+        const start = parseISO(city.startDate);
+        const end = parseISO(city.endDate);
+
+        let updatedCity = { ...city };
+        if (type === "move") {
+          updatedCity = {
+            ...city,
+            startDate: format(addDays(start, daysDelta), "yyyy-MM-dd"),
+            endDate: format(addDays(end, daysDelta), "yyyy-MM-dd"),
+          };
+        } else if (type === "resize-left") {
+          const newStart = addDays(start, daysDelta);
+          if (newStart > end) return t;
+          updatedCity = { ...city, startDate: format(newStart, "yyyy-MM-dd") };
+        } else {
+          const newEnd = addDays(end, daysDelta);
+          if (newEnd < start) return t;
+          updatedCity = { ...city, endDate: format(newEnd, "yyyy-MM-dd") };
+        }
+
+        newSegments[segIdx] = updatedCity;
+
+        // Sync adjacent transports
+        if (type === "move" || type === "resize-left") {
+          if (segIdx > 0) {
+            const prevSeg = newSegments[segIdx - 1];
+            if (prevSeg.type === "transport") {
+              newSegments[segIdx - 1] = {
+                ...prevSeg,
+                arrivalDate: updatedCity.startDate,
+                arrivalTime: updatedCity.startTime || "00:00",
               };
-            } else if (type === "resize-left") {
-              const newStart = addDays(start, daysDelta);
-              if (newStart > end) return city;
-              return { ...city, startDate: format(newStart, "yyyy-MM-dd") };
-            } else {
-              const newEnd = addDays(end, daysDelta);
-              if (newEnd < start) return city;
-              return { ...city, endDate: format(newEnd, "yyyy-MM-dd") };
             }
-          }),
-        };
+          }
+        }
+
+        if (type === "move" || type === "resize-right") {
+          if (segIdx < newSegments.length - 1) {
+            const nextSeg = newSegments[segIdx + 1];
+            if (nextSeg.type === "transport") {
+              newSegments[segIdx + 1] = {
+                ...nextSeg,
+                departureDate: updatedCity.endDate,
+                departureTime: updatedCity.endTime || "23:59",
+              };
+            }
+          }
+        }
+
+        return { ...t, segments: newSegments };
       }),
     }));
   }
@@ -137,7 +166,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     // Set focused cell
     const dayIndex = differenceInDays(
       startOfDay(parseISO(segment.startDate)),
-      startOfDay(parseISO(itinerary.startDate))
+      startOfDay(parseISO(itinerary.startDate)),
     );
     setFocusedCell({ travelerId: traveler.id, dayIndex });
 
@@ -191,22 +220,16 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     const daysDelta = Math.round(drag.deltaX / zoomLevel);
     const start = parseISO(segment.startDate);
     const end = parseISO(segment.endDate);
-    if (drag.type === "move") {
-      previewLabel = `${format(addDays(start, daysDelta), "dd/MM")} – ${format(addDays(end, daysDelta), "dd/MM")}`;
-    } else if (drag.type === "resize-left") {
-      previewLabel = `${format(addDays(start, daysDelta), "dd/MM")} – ${format(end, "dd/MM")}`;
-    } else {
-      previewLabel = `${format(start, "dd/MM")} – ${format(addDays(end, daysDelta), "dd/MM")}`;
-    }
-  }
+    const startTime = segment.startTime ? ` ${segment.startTime}` : "";
+    const endTime = segment.endTime ? ` ${segment.endTime}` : "";
 
-  function handleAddTransportClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setTransportPopover({
-      x: Math.min(rect.right + 4, window.innerWidth - 300),
-      y: Math.min(rect.top - 40, window.innerHeight - 400),
-    });
+    if (drag.type === "move") {
+      previewLabel = `${format(addDays(start, daysDelta), "dd/MM")}${startTime} – ${format(addDays(end, daysDelta), "dd/MM")}${endTime}`;
+    } else if (drag.type === "resize-left") {
+      previewLabel = `${format(addDays(start, daysDelta), "dd/MM")}${startTime} – ${format(end, "dd/MM")}${endTime}`;
+    } else {
+      previewLabel = `${format(start, "dd/MM")}${startTime} – ${format(addDays(end, daysDelta), "dd/MM")}${endTime}`;
+    }
   }
 
   // Get tooltip position from block's bounding rect (for portal)
@@ -221,7 +244,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         data-traveler-id={traveler.id}
         data-segment-id={segment.id}
         className={cn(
-          "absolute top-1/2 -translate-y-1/2 h-10 rounded-md shadow-sm border flex items-center justify-center cursor-pointer transition-shadow hover:shadow-md hover:z-10 overflow-hidden group",
+          "absolute top-1/2 -translate-y-1/2 h-10 rounded-md shadow-sm border flex items-center justify-center cursor-pointer transition-shadow hover:shadow-md hover:z-10 overflow-hidden group pointer-events-auto",
           isSelected ? "ring-2 ring-indigo-500 z-10" : "border-slate-700/60",
           isDragging && "z-30 shadow-lg opacity-90",
         )}
@@ -346,35 +369,6 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
           >
             {previewLabel}
           </div>,
-          document.body,
-        )}
-
-      {/* Add Transport "+" button — shown when selected and no transport after */}
-      {isSelected && !hasTransportAfter && !isDragging && (
-        <div
-          data-add-transport-btn
-          className="absolute top-1/2 -translate-y-1/2 z-30 cursor-pointer"
-          style={{ left: `${left + width + 2}px` }}
-          onClick={handleAddTransportClick}
-          title="Add transport"
-        >
-          <div className="w-6 h-6 rounded-full bg-indigo-500 hover:bg-indigo-500 text-white flex items-center justify-center shadow-md transition-colors hover:scale-110">
-            <Plus size={14} strokeWidth={3} />
-          </div>
-        </div>
-      )}
-
-      {/* Transport Popover — portal to body to escape isolate stacking context */}
-      {transportPopover &&
-        createPortal(
-          <AddTransportPopover
-            travelerId={traveler.id}
-            segment={segment}
-            segmentIndex={segIndex}
-            nextCity={nextCity ?? null}
-            position={transportPopover}
-            onClose={() => setTransportPopover(null)}
-          />,
           document.body,
         )}
     </>

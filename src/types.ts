@@ -21,7 +21,9 @@ export interface CitySegment {
   cityName: string;
   country: string;
   startDate: string; // YYYY-MM-DD
+  startTime?: string; // HH:mm
   endDate: string; // YYYY-MM-DD
+  endTime?: string; // HH:mm
   notes?: string;
   accommodation?: string;
   stays?: Stay[];
