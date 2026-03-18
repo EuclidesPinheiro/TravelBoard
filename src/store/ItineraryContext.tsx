@@ -243,9 +243,10 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     if (loading) return;
     const channel = supabase
       .channel(`board-${boardId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'itinerary_versions', filter: `board_id=eq.${boardId}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'itinerary_versions', filter: `board_id=eq.${boardId.toLowerCase()}` },
         (payload: any) => {
           if (payload.new?.session_id === sessionIdRef.current) return;
+          console.log('Realtime event received!', payload.eventType, payload.new?.id);
           const eventType = payload.eventType;
           if (eventType === 'UPDATE' && payload.new) {
             const updated = rowToItinerary(payload.new);
@@ -268,7 +269,10 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
           }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log('Realtime subscription status:', status);
+        if (err) console.error('Realtime subscription error:', err);
+      });
     return () => { supabase.removeChannel(channel); };
   }, [boardId, loading]);
 
