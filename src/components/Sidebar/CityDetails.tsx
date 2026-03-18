@@ -38,8 +38,8 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
   const days =
     differenceInDays(parseISO(segment.endDate), parseISO(segment.startDate)) + 1;
 
-  function toDateTime(date: string, time: string): string {
-    return time ? `${date}T${time}` : `${date}T00:00`;
+  function toDateTime(date: string, time: string, defaultTime: string = "00:00"): string {
+    return `${date}T${time || defaultTime}`;
   }
 
   function updateSegment(
@@ -62,7 +62,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
   function handleArrivalDateChange(newDate: string) {
     if (!newDate) return;
     const newArrival = toDateTime(newDate, arrivalTime);
-    const depDt = toDateTime(departureDate, departureTime);
+    const depDt = toDateTime(departureDate, departureTime, "23:59");
     if (newArrival > depDt) return;
     updateSegment(traveler.id, segment.id, (s) => ({
       ...s,
@@ -79,7 +79,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
   function handleArrivalTimeChange(newTime: string) {
     if (!newTime) return;
     const newArrival = toDateTime(arrivalDate, newTime);
-    const depDt = toDateTime(departureDate, departureTime);
+    const depDt = toDateTime(departureDate, departureTime, "23:59");
     if (newArrival > depDt) return;
     updateSegment(traveler.id, segment.id, (s) => ({
       ...s,
@@ -96,7 +96,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
   function handleDepartureDateChange(newDate: string) {
     if (!newDate) return;
     const arrDt = toDateTime(arrivalDate, arrivalTime);
-    const newDeparture = toDateTime(newDate, departureTime);
+    const newDeparture = toDateTime(newDate, departureTime, "23:59");
     if (newDeparture < arrDt) return;
     updateSegment(traveler.id, segment.id, (s) => ({ ...s, endDate: newDate }));
     if (nextTransport) {
