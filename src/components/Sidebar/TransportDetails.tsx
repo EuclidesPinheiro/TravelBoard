@@ -3,13 +3,14 @@ import { useItinerary } from '../../store/ItineraryContext';
 import { Navigation, Clock, Moon, DollarSign, Plane, TrainFront, Ship, Bus, Car } from 'lucide-react';
 import { parseISO, differenceInMinutes } from 'date-fns';
 import { cn } from '../../utils/cn';
+import { TRANSPORT_COLORS } from '../../utils/transportColors';
 
-const TRANSPORT_OPTIONS: { mode: TransportMode; label: string; icon: typeof Plane; color: string }[] = [
-  { mode: 'flight', label: 'Avião', icon: Plane, color: '#E74C3C' },
-  { mode: 'train', label: 'Trem', icon: TrainFront, color: '#F39C12' },
-  { mode: 'ferry', label: 'Barco', icon: Ship, color: '#1ABC9C' },
-  { mode: 'bus', label: 'Ônibus', icon: Bus, color: '#27AE60' },
-  { mode: 'car', label: 'Carro', icon: Car, color: '#9B59B6' },
+const TRANSPORT_OPTIONS: { mode: TransportMode; label: string; icon: typeof Plane }[] = [
+  { mode: 'flight', label: 'Avião', icon: Plane },
+  { mode: 'train', label: 'Trem', icon: TrainFront },
+  { mode: 'ferry', label: 'Barco', icon: Ship },
+  { mode: 'bus', label: 'Ônibus', icon: Bus },
+  { mode: 'car', label: 'Carro', icon: Car },
 ];
 
 export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, segmentId: string }) {
@@ -110,6 +111,9 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
           {TRANSPORT_OPTIONS.map(opt => {
             const Icon = opt.icon;
             const selected = segment.mode === opt.mode || (segment.mode === 'night_train' && opt.mode === 'train') || (segment.mode === 'tour_bus' && opt.mode === 'bus');
+            const highlightColor = selected
+              ? TRANSPORT_COLORS[segment.mode] ?? TRANSPORT_COLORS[opt.mode]
+              : undefined;
             return (
               <button
                 key={opt.mode}
@@ -129,10 +133,10 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
                     : "bg-slate-900 hover:bg-slate-800 text-slate-500"
                 )}
                 style={selected ? {
-                  backgroundColor: `${opt.color}15`,
-                  color: opt.color,
-                  ringColor: opt.color,
-                  ['--tw-ring-color' as string]: opt.color,
+                  backgroundColor: `${highlightColor}15`,
+                  color: highlightColor,
+                  ringColor: highlightColor,
+                  ['--tw-ring-color' as string]: highlightColor,
                 } : undefined}
                 title={opt.label}
               >
