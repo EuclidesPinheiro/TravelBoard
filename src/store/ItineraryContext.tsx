@@ -159,7 +159,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
       relativeRowIndex: number;
       segments: Segment[];
     }[];
-    centerDayOffset: number;
+    anchorDayOffset: number;
   } | null>(null);
 
   const [highlightedTravelerId, setHighlightedTravelerId] = useState<string | null>(null);
@@ -300,27 +300,26 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     const sortedTravelerIds = Array.from(travelerGroups.keys()).sort((a, b) => travelerIndices.get(a)! - travelerIndices.get(b)!);
     const baseTravelerId = sortedTravelerIds[0];
     const baseTravelerIdx = travelerIndices.get(baseTravelerId)!;
-    const baseSegments = travelerGroups.get(baseTravelerId)!;
     
-    let minDay = Infinity, maxDay = -Infinity;
-    baseSegments.forEach(seg => {
-      if (seg.type === 'city') {
-        minDay = Math.min(minDay, getDayOffset(seg.startDate));
-        maxDay = Math.max(maxDay, getDayOffset(seg.endDate));
-      } else {
-        minDay = Math.min(minDay, getDayOffset(seg.departureDate));
-        maxDay = Math.max(maxDay, getDayOffset(seg.arrivalDate));
-      }
+    let minDay = Infinity;
+    travelerGroups.forEach((segments) => {
+      segments.forEach(seg => {
+        if (seg.type === 'city') {
+          minDay = Math.min(minDay, getDayOffset(seg.startDate));
+        } else {
+          minDay = Math.min(minDay, getDayOffset(seg.departureDate));
+        }
+      });
     });
     
-    const centerDayOffset = (minDay + maxDay) / 2;
+    const anchorDayOffset = minDay;
     
     setClipboard({
       travelers: sortedTravelerIds.map(tid => ({
         relativeRowIndex: travelerIndices.get(tid)! - baseTravelerIdx,
         segments: JSON.parse(JSON.stringify(travelerGroups.get(tid)!)) as Segment[],
       })),
-      centerDayOffset,
+      anchorDayOffset,
     });
   }, [itinerary, selection, getDayOffset]);
 
@@ -334,7 +333,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     
     const targetTravelerIdx = itinerary.travelers.findIndex(t => t.id === focusedCell.travelerId);
     if (targetTravelerIdx === -1) return;
-    const dayShift = focusedCell.dayIndex - clipboard.centerDayOffset;
+    const dayShift = focusedCell.dayIndex - clipboard.anchorDayOffset;
     setItinerary(prev => {
       const newItinerary = { ...prev, travelers: [...prev.travelers] };
       clipboard.travelers.forEach(cbTraveler => {
