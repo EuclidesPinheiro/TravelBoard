@@ -5,7 +5,6 @@ import { useItinerary } from "../../store/ItineraryContext";
 import { getCityColor } from "../../utils/cityColors";
 import { cn } from "../../utils/cn";
 import { Home, Plus } from "lucide-react";
-import { AddTransportPopover } from "./AddTransportPopover";
 import {
   addDays,
   parseISO,

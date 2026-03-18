@@ -1,4 +1,4 @@
-import { Traveler, TransportSegment, TransportMode } from '../../types';
+import { Traveler, TransportSegment, TransportMode, CitySegment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { Navigation, Clock, Moon, DollarSign, Plane, TrainFront, Ship, Bus, Car } from 'lucide-react';
 import { parseISO, differenceInMinutes } from 'date-fns';

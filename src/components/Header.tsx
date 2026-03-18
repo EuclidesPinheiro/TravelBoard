@@ -80,7 +80,7 @@ export function Header() {
                 >
                   {i + 1}
                 </button>
-                {i > 0 && i === activeVersionIndex && (
+                {versions.length > 1 && i === activeVersionIndex && (
                   <button
                     onClick={(e) => { e.stopPropagation(); deleteVersion(i); }}
                     className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-slate-300 hover:bg-red-500 text-white flex items-center justify-center transition-colors"
