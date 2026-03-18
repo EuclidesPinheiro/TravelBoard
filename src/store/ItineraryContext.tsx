@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode, useMemo } from 'react';
 import { Itinerary, SelectionType, CitySegment, Segment } from '../types';
 import { createBoardSupabaseClient } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { differenceInDays, parseISO, startOfDay, addDays, format } from 'date-fns';
+import { syncedStore, getYjsDoc } from '@syncedstore/core';
+import { useSyncedStore } from '@syncedstore/react';
+import * as Y from 'yjs';
+import base64js from 'base64-js';
 
 const MAX_UNDO = 50;
 const SYNC_DEBOUNCE_MS = 500;
@@ -206,6 +210,7 @@ interface DbRow {
   checklists: any;
   session_id?: string;
   updated_at?: string;
+  yjs_state?: string | null;
 }
 
 function rowToItinerary(row: DbRow): Itinerary {
@@ -261,8 +266,17 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
     () => createBoardSupabaseClient(accessToken),
     [accessToken],
   );
+
+  // --- Yjs / SyncedStore ---
+  const { store, doc } = useMemo(() => {
+    const s = syncedStore({ versions: [] as Itinerary[] });
+    return { store: s, doc: getYjsDoc(s) };
+  }, [boardId]);
+
+  const state = useSyncedStore(store);
+  const versions = state.versions as Itinerary[]; // Reactive proxy
+
   // --- Basic State ---
-  const [versions, setVersions] = useState<Itinerary[]>([]);
   const [activeVersionIndex, setActiveVersionIndex] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -284,11 +298,9 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
   // --- Refs & Internal Sync State ---
   const undoStackRef = useRef<UndoEntry[]>([]);
   const redoStackRef = useRef<UndoEntry[]>([]);
-  const [undoRedoVersion, setUndoRedoVersion] = useState(0); // For trigger re-renders if needed
+  const [undoRedoVersion, setUndoRedoVersion] = useState(0); 
   const skipSnapshotRef = useRef(false);
   const sessionIdRef = useRef(uuidv4());
-  const versionsRef = useRef<Itinerary[]>(versions);
-  useEffect(() => { versionsRef.current = versions; });
   const syncTimeoutRef = useRef<number | null>(null);
 
   // --- Derived State ---
@@ -297,12 +309,25 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
 
   // --- Sync logic ---
   const syncToSupabase = useCallback(async () => {
-    const current = versionsRef.current;
+    // Read the current state directly from the store
+    const current = JSON.parse(JSON.stringify(store.versions)) as Itinerary[];
     if (current.length === 0) return;
-    const rows = current.map((v, i) => itineraryToRow(v, boardId, i, sessionIdRef.current));
-    const { error } = await supabase.from('itinerary_versions').upsert(rows, { onConflict: 'id' });
-    if (error) console.error('Sync to Supabase failed:', error.message);
-  }, [boardId, supabase]);
+    
+    try {
+      const yjsState = base64js.fromByteArray(Y.encodeStateAsUpdate(doc));
+
+      const rows: DbRow[] = current.map((v, i) => {
+        const row = itineraryToRow(v, boardId, i, sessionIdRef.current);
+        if (i === 0) row.yjs_state = yjsState;
+        return row;
+      });
+
+      const { error } = await supabase.from('itinerary_versions').upsert(rows, { onConflict: 'id' });
+      if (error) console.error('Sync to Supabase failed:', error.message);
+    } catch (e) {
+      console.error('Failed to encode/sync Yjs state:', e);
+    }
+  }, [boardId, supabase, doc, store]);
 
   const scheduleSyncToSupabase = useCallback(() => {
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
@@ -319,77 +344,100 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
   }, []);
 
   const setItinerary: React.Dispatch<React.SetStateAction<Itinerary>> = useCallback((action) => {
-    setVersions(prev => {
-      if (!skipSnapshotRef.current) {
-        undoStackRef.current = [...undoStackRef.current.slice(-(MAX_UNDO - 1)), { versions: prev, activeVersionIndex: safeIndex }];
-        redoStackRef.current = [];
-        setUndoRedoVersion(v => v + 1);
-      }
-      const updated = [...prev];
-      let newItinerary = typeof action === 'function' ? action(prev[safeIndex]) : action;
-      newItinerary = cleanupOrphanedCityData(newItinerary);
-      newItinerary = syncTravelSegments(newItinerary);
-      updated[safeIndex] = newItinerary;
-      return updated;
-    });
-    scheduleSyncToSupabase();
-  }, [safeIndex, scheduleSyncToSupabase]);
+    if (!skipSnapshotRef.current) {
+      undoStackRef.current = [...undoStackRef.current.slice(-(MAX_UNDO - 1)), { 
+        versions: JSON.parse(JSON.stringify(store.versions)), 
+        activeVersionIndex: safeIndex 
+      }];
+      redoStackRef.current = [];
+      setUndoRedoVersion(v => v + 1);
+    }
+    
+    const plainCurrent = JSON.parse(JSON.stringify(store.versions[safeIndex]));
+    let newItinerary = typeof action === 'function' ? action(plainCurrent) : action;
+    newItinerary = cleanupOrphanedCityData(newItinerary);
+    newItinerary = syncTravelSegments(newItinerary);
+    
+    // Check if changed
+    if (JSON.stringify(plainCurrent) !== JSON.stringify(newItinerary)) {
+      store.versions.splice(safeIndex, 1, newItinerary);
+    }
+  }, [safeIndex, store, pushUndo]);
 
   // --- Data Loading & Realtime ---
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const { data, error: fetchError } = await supabase
-        .from('itinerary_versions')
-        .select('*')
-        .eq('board_id', boardId)
-        .order('version_index', { ascending: true });
-      if (cancelled) return;
-      if (fetchError) { setError(fetchError.message); setLoading(false); return; }
-      if (!data || data.length === 0) { setError('Board not found'); setLoading(false); return; }
-      setVersions(data.map(rowToItinerary));
-      setLoading(false);
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('itinerary_versions')
+          .select('*')
+          .eq('board_id', boardId)
+          .order('version_index', { ascending: true });
+        
+        if (cancelled) return;
+        if (fetchError) { setError(fetchError.message); setLoading(false); return; }
+        if (!data || data.length === 0) { setError('Board not found'); setLoading(false); return; }
+        
+        const firstRow = data[0];
+        if (firstRow.yjs_state) {
+          const uint8Array = base64js.toByteArray(firstRow.yjs_state);
+          // Apply initial state with 'remote' origin to avoid triggering immediate broadcast/sync
+          Y.applyUpdate(doc, uint8Array, 'remote');
+        } else {
+          const loadedVersions = data.map(rowToItinerary);
+          store.versions.splice(0, store.versions.length, ...loadedVersions);
+        }
+      } catch (e) {
+        console.error('Error during initial load:', e);
+        setError('Failed to load board data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
     load();
     return () => { cancelled = true; };
-  }, [boardId, supabase]);
+  }, [boardId, supabase, doc, store]);
 
   useEffect(() => {
     if (loading) return;
-    const channel = supabase
-      .channel(`board-${boardId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'itinerary_versions', filter: `board_id=eq.${boardId.toLowerCase()}` },
-        (payload: any) => {
-          if (payload.new?.session_id === sessionIdRef.current) return;
-          console.log('Realtime event received!', payload.eventType, payload.new?.id);
-          const eventType = payload.eventType;
-          if (eventType === 'UPDATE' && payload.new) {
-            const updated = rowToItinerary(payload.new);
-            setVersions(prev => prev.map(v => v.id === payload.new.id ? updated : v));
-          }
-          if (eventType === 'INSERT' && payload.new) {
-            const newVersion = rowToItinerary(payload.new);
-            setVersions(prev => {
-              if (prev.some(v => v.id === payload.new.id)) return prev;
-              const next = [...prev, newVersion];
-              next.sort((a, b) => (payload.new.version_index ?? 0) - (payload.new.version_index ?? 0));
-              return next;
-            });
-          }
-          if (eventType === 'DELETE' && payload.old) {
-            setVersions(prev => {
-              const filtered = prev.filter(v => v.id !== payload.old.id);
-              return filtered.length > 0 ? filtered : prev;
-            });
-          }
-        }
-      )
+    
+    const channel = supabase.channel(`board-${boardId}-yjs`, {
+      config: { broadcast: { ack: false } },
+    });
+
+    channel
+      .on('broadcast', { event: 'yjs-update' }, (payload) => {
+        if (payload.payload.sessionId === sessionIdRef.current) return;
+        console.log('Remote Yjs update received!');
+        const update = new Uint8Array(payload.payload.update);
+        Y.applyUpdate(doc, update, 'remote');
+      })
       .subscribe((status, err) => {
-        console.log('Realtime subscription status:', status);
-        if (err) console.error('Realtime subscription error:', err);
+        console.log('Realtime broadcast status:', status);
+        if (err) console.error('Realtime broadcast error:', err);
       });
-    return () => { supabase.removeChannel(channel); };
-  }, [boardId, loading, supabase]);
+
+    const onUpdate = (update: Uint8Array, origin: any) => {
+      // Only broadcast and sync if the change originated locally.
+      // In SyncedStore, local mutations default to an origin of null.
+      if (origin !== 'remote') {
+        channel.send({
+          type: 'broadcast',
+          event: 'yjs-update',
+          payload: { update: Array.from(update), sessionId: sessionIdRef.current }
+        });
+        scheduleSyncToSupabase();
+      }
+    };
+
+    doc.on('update', onUpdate);
+
+    return () => {
+      doc.off('update', onUpdate);
+      supabase.removeChannel(channel);
+    };
+  }, [boardId, loading, supabase, doc, scheduleSyncToSupabase]);
 
   // --- Navigation & Copy/Paste ---
   const getDayOffset = useCallback((dateStr: string) => {
@@ -508,54 +556,51 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
   }, [itinerary, clipboard, focusedCell, getDayOffset, setItinerary]);
 
   const switchVersion = (index: number) => { setActiveVersionIndex(index); setSelection([]); setFocusedCell(null); };
+  
   const cloneVersion = useCallback(() => {
     if (!itinerary) return;
-    pushUndo({ versions, activeVersionIndex: safeIndex });
-    const cloned = deepCloneItinerary(itinerary);
-    setVersions(prev => [...prev, cloned]);
-    setActiveVersionIndex(versions.length);
+    pushUndo({ versions: JSON.parse(JSON.stringify(store.versions)), activeVersionIndex: safeIndex });
+    const cloned = deepCloneItinerary(JSON.parse(JSON.stringify(itinerary)));
+    store.versions.push(cloned);
+    setActiveVersionIndex(store.versions.length - 1);
     setSelection([]);
-    scheduleSyncToSupabase();
-  }, [itinerary, versions, safeIndex, pushUndo, scheduleSyncToSupabase]);
+  }, [itinerary, store, safeIndex, pushUndo]);
 
   const deleteVersion = useCallback(async (index: number) => {
-    if (versions.length <= 1) return;
-    const deletedId = versions[index].id;
-    pushUndo({ versions, activeVersionIndex: safeIndex });
-    setVersions(prev => prev.filter((_, i) => i !== index));
+    if (store.versions.length <= 1) return;
+    const deletedId = (store.versions[index] as any).id;
+    pushUndo({ versions: JSON.parse(JSON.stringify(store.versions)), activeVersionIndex: safeIndex });
+    store.versions.splice(index, 1);
     if (activeVersionIndex >= index && activeVersionIndex > 0) setActiveVersionIndex(prev => prev - 1);
     setSelection([]);
     await supabase.from('itinerary_versions').delete().eq('id', deletedId);
-    scheduleSyncToSupabase();
-  }, [versions, safeIndex, activeVersionIndex, pushUndo, scheduleSyncToSupabase, supabase]);
+  }, [store, safeIndex, activeVersionIndex, pushUndo, supabase]);
 
   const undo = useCallback(() => {
     if (undoStackRef.current.length === 0) return;
     const entry = undoStackRef.current[undoStackRef.current.length - 1];
     undoStackRef.current = undoStackRef.current.slice(0, -1);
-    redoStackRef.current = [...redoStackRef.current, { versions, activeVersionIndex: safeIndex }];
+    redoStackRef.current = [...redoStackRef.current, { versions: JSON.parse(JSON.stringify(store.versions)), activeVersionIndex: safeIndex }];
     skipSnapshotRef.current = true;
-    setVersions(entry.versions);
+    store.versions.splice(0, store.versions.length, ...entry.versions);
     setActiveVersionIndex(entry.activeVersionIndex);
     setSelection([]);
     skipSnapshotRef.current = false;
     setUndoRedoVersion(v => v + 1);
-    scheduleSyncToSupabase();
-  }, [versions, safeIndex, scheduleSyncToSupabase]);
+  }, [store, safeIndex]);
 
   const redo = useCallback(() => {
     if (redoStackRef.current.length === 0) return;
     const entry = redoStackRef.current[redoStackRef.current.length - 1];
     redoStackRef.current = redoStackRef.current.slice(0, -1);
-    undoStackRef.current = [...undoStackRef.current, { versions, activeVersionIndex: safeIndex }];
+    undoStackRef.current = [...undoStackRef.current, { versions: JSON.parse(JSON.stringify(store.versions)), activeVersionIndex: safeIndex }];
     skipSnapshotRef.current = true;
-    setVersions(entry.versions);
+    store.versions.splice(0, store.versions.length, ...entry.versions);
     setActiveVersionIndex(entry.activeVersionIndex);
     setSelection([]);
     skipSnapshotRef.current = false;
     setUndoRedoVersion(v => v + 1);
-    scheduleSyncToSupabase();
-  }, [versions, safeIndex, scheduleSyncToSupabase]);
+  }, [store, safeIndex]);
 
   const canUndo = undoStackRef.current.length > 0;
   const canRedo = redoStackRef.current.length > 0;
