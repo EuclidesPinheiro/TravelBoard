@@ -1,27 +1,18 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { initialItinerary } from "../data/initialData";
 import { Itinerary } from "../types";
 import { Plane, Upload, Plus, X } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
+import {
+  EdgeFunctionError,
+  invokePublicFunction,
+  setStoredBoardAccessToken,
+} from "../lib/supabase";
 
-function itineraryToRow(
-  itinerary: Itinerary,
-  boardId: string,
-  versionIndex: number,
-) {
-  return {
-    id: itinerary.id,
-    board_id: boardId,
-    version_index: versionIndex,
-    name: itinerary.name,
-    start_date: itinerary.startDate,
-    end_date: itinerary.endDate,
-    travelers: itinerary.travelers,
-    attractions: itinerary.attractions || {},
-    checklists: itinerary.checklists || {},
-  };
+interface CreateBoardResponse {
+  accessToken: string;
+  boardId: string;
 }
 
 export function LandingPage() {
@@ -41,27 +32,21 @@ export function LandingPage() {
     setError(null);
 
     try {
-      // Create board
-      const { data: board, error: boardErr } = await supabase
-        .from("boards")
-        .insert({ password: boardPassword || null })
-        .select("id")
-        .single();
+      const data = await invokePublicFunction<CreateBoardResponse>("create-board", {
+        versions,
+        password: boardPassword?.trim() || null,
+      });
 
-      if (boardErr || !board)
-        throw new Error(boardErr?.message || "Failed to create board");
-
-      // Insert versions
-      const rows = versions.map((v, i) => itineraryToRow(v, board.id, i));
-      const { error: versionsErr } = await supabase
-        .from("itinerary_versions")
-        .insert(rows);
-
-      if (versionsErr) throw new Error(versionsErr.message);
-
-      navigate(`/b/${board.id}`);
-    } catch (err: any) {
-      setError(err.message);
+      setStoredBoardAccessToken(data.boardId, data.accessToken);
+      navigate(`/b/${data.boardId}`);
+    } catch (err) {
+      if (err instanceof EdgeFunctionError) {
+        setError(err.message);
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Failed to create board");
+      }
       setCreating(false);
     }
   }

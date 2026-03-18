@@ -4,7 +4,8 @@
 -- Table: boards (one per shared trip link)
 create table boards (
   id uuid primary key default gen_random_uuid(),
-  password text,
+  password_hash text,
+  short_code text unique,
   created_at timestamptz default now()
 );
 
@@ -27,12 +28,54 @@ create table itinerary_versions (
 -- Index for fast lookups by board
 create index idx_versions_board_id on itinerary_versions(board_id);
 
--- RLS policies (open access — security via unguessable board UUID in URL)
+create or replace function public.request_jwt_claims()
+returns jsonb
+language sql
+stable
+as $$
+  select coalesce(
+    nullif(current_setting('request.jwt.claims', true), ''),
+    '{}'
+  )::jsonb
+$$;
+
+create or replace function public.current_board_id()
+returns uuid
+language sql
+stable
+as $$
+  select nullif(public.request_jwt_claims() ->> 'board_id', '')::uuid
+$$;
+
+create or replace function public.has_board_access(target_board_id uuid)
+returns boolean
+language sql
+stable
+as $$
+  select
+    public.request_jwt_claims() ->> 'board_access' = 'true'
+    and public.current_board_id() = target_board_id
+$$;
+
 alter table boards enable row level security;
 alter table itinerary_versions enable row level security;
 
-create policy "Public access boards" on boards for all using (true) with check (true);
-create policy "Public access versions" on itinerary_versions for all using (true) with check (true);
+create policy "Board token can read versions"
+on itinerary_versions for select
+using (public.has_board_access(board_id));
+
+create policy "Board token can insert versions"
+on itinerary_versions for insert
+with check (public.has_board_access(board_id));
+
+create policy "Board token can update versions"
+on itinerary_versions for update
+using (public.has_board_access(board_id))
+with check (public.has_board_access(board_id));
+
+create policy "Board token can delete versions"
+on itinerary_versions for delete
+using (public.has_board_access(board_id));
 
 -- Enable Realtime on itinerary_versions
 alter publication supabase_realtime add table itinerary_versions;

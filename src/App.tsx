@@ -10,7 +10,19 @@ import { Header } from './components/Header';
 import { TimelineGrid } from './components/Timeline/TimelineGrid';
 import { ReportTabs } from './components/ReportTabs';
 import { Sidebar } from './components/Sidebar/Sidebar';
-import { supabase } from './lib/supabase';
+import {
+  EdgeFunctionError,
+  clearStoredBoardAccessToken,
+  getStoredBoardAccessToken,
+  invokePublicFunction,
+  isBoardAccessTokenUsable,
+  setStoredBoardAccessToken,
+} from './lib/supabase';
+
+interface BoardAccessResponse {
+  accessToken: string;
+  boardId: string;
+}
 
 function useDeleteSelection() {
   const { selection, setSelection, setItinerary } = useItinerary();
@@ -149,52 +161,104 @@ export default function App() {
   const { boardId } = useParams<{ boardId: string }>();
   const [loading, setLoading] = useState(true);
   const [needsPassword, setNeedsPassword] = useState(false);
-  const [boardPassword, setBoardPassword] = useState<string | null>(null);
   const [inputPassword, setInputPassword] = useState('');
+  const [boardAccessToken, setBoardAccessToken] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!boardId) return;
+    let cancelled = false;
 
-    async function checkBoard() {
-      const { data, error } = await supabase
-        .from('boards')
-        .select('password')
-        .eq('id', boardId)
-        .single();
+    async function resolveAccess(password?: string) {
+      setLoading(true);
+      setError('');
 
-      if (error || !data) {
-        setLoading(false);
-        return;
-      }
+      const storedToken = getStoredBoardAccessToken(boardId);
+      const reusableToken =
+        !password && storedToken && isBoardAccessTokenUsable(storedToken, boardId)
+          ? storedToken
+          : null;
 
-      if (data.password) {
-        setBoardPassword(data.password);
-        const saved = localStorage.getItem(`travelboard_pwd_${boardId}`);
-        if (saved === data.password) {
-          setNeedsPassword(false);
-        } else {
-          setNeedsPassword(true);
-        }
-      } else {
+      try {
+        const data = await invokePublicFunction<BoardAccessResponse>('board-access', {
+          boardId,
+          password,
+          accessToken: reusableToken,
+        });
+
+        if (cancelled) return;
+
+        setStoredBoardAccessToken(boardId, data.accessToken);
+        setBoardAccessToken(data.accessToken);
         setNeedsPassword(false);
-      }
+        setInputPassword('');
+      } catch (err) {
+        if (cancelled) return;
 
-      setLoading(false);
+        clearStoredBoardAccessToken(boardId);
+        setBoardAccessToken(null);
+
+        if (err instanceof EdgeFunctionError) {
+          if (err.status === 401) {
+            setNeedsPassword(true);
+            setError(password ? 'Senha incorreta.' : '');
+          } else if (err.status === 404) {
+            setNeedsPassword(false);
+            setError('Board not found.');
+          } else {
+            setNeedsPassword(false);
+            setError(err.message || 'Failed to verify access.');
+          }
+        } else {
+          setNeedsPassword(false);
+          setError('Failed to verify access.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
 
-    checkBoard();
+    resolveAccess();
+
+    return () => {
+      cancelled = true;
+    };
   }, [boardId]);
 
-  function handlePasswordSubmit(e: React.FormEvent) {
+  async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (inputPassword === boardPassword) {
-      localStorage.setItem(`travelboard_pwd_${boardId}`, inputPassword);
-      setNeedsPassword(false);
-      setError('');
-    } else {
-      setError('Senha incorreta.');
-    }
+    if (!boardId) return;
+    await (async () => {
+      setLoading(true);
+      try {
+        const data = await invokePublicFunction<BoardAccessResponse>('board-access', {
+          boardId,
+          password: inputPassword,
+        });
+        setStoredBoardAccessToken(boardId, data.accessToken);
+        setBoardAccessToken(data.accessToken);
+        setNeedsPassword(false);
+        setInputPassword('');
+        setError('');
+      } catch (err) {
+        clearStoredBoardAccessToken(boardId);
+        setBoardAccessToken(null);
+        if (err instanceof EdgeFunctionError && err.status === 401) {
+          setError('Senha incorreta.');
+          setNeedsPassword(true);
+        } else if (err instanceof EdgeFunctionError && err.status === 404) {
+          setNeedsPassword(false);
+          setError('Board not found.');
+        } else {
+          setNeedsPassword(false);
+          setError('Failed to verify access.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
   }
 
   if (!boardId) {
@@ -211,6 +275,17 @@ export default function App() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4" />
           <p className="text-slate-500">Verificando acesso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !needsPassword) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-slate-950 rounded-2xl shadow-lg p-8 max-w-sm w-full text-center border border-slate-800">
+          <h2 className="text-xl font-bold text-slate-50 mb-4">Access Error</h2>
+          <p className="text-slate-400 text-sm">{error}</p>
         </div>
       </div>
     );
@@ -243,8 +318,12 @@ export default function App() {
     );
   }
 
+  if (!boardAccessToken) {
+    return null;
+  }
+
   return (
-    <ItineraryProvider boardId={boardId}>
+    <ItineraryProvider boardId={boardId} accessToken={boardAccessToken}>
       <AppContent />
     </ItineraryProvider>
   );

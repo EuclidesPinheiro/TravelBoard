@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { Itinerary, SelectionType, CitySegment, Segment } from '../types';
-import { supabase } from '../lib/supabase';
+import { createBoardSupabaseClient } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { differenceInDays, parseISO, startOfDay, addDays, format } from 'date-fns';
 
@@ -253,9 +253,14 @@ interface UndoEntry {
 interface ItineraryProviderProps {
   children: ReactNode;
   boardId: string;
+  accessToken: string;
 }
 
-export function ItineraryProvider({ children, boardId }: ItineraryProviderProps) {
+export function ItineraryProvider({ children, boardId, accessToken }: ItineraryProviderProps) {
+  const supabase = React.useMemo(
+    () => createBoardSupabaseClient(accessToken),
+    [accessToken],
+  );
   // --- Basic State ---
   const [versions, setVersions] = useState<Itinerary[]>([]);
   const [activeVersionIndex, setActiveVersionIndex] = useState<number>(0);
@@ -297,7 +302,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     const rows = current.map((v, i) => itineraryToRow(v, boardId, i, sessionIdRef.current));
     const { error } = await supabase.from('itinerary_versions').upsert(rows, { onConflict: 'id' });
     if (error) console.error('Sync to Supabase failed:', error.message);
-  }, [boardId]);
+  }, [boardId, supabase]);
 
   const scheduleSyncToSupabase = useCallback(() => {
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
@@ -347,7 +352,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     }
     load();
     return () => { cancelled = true; };
-  }, [boardId]);
+  }, [boardId, supabase]);
 
   useEffect(() => {
     if (loading) return;
@@ -384,7 +389,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
         if (err) console.error('Realtime subscription error:', err);
       });
     return () => { supabase.removeChannel(channel); };
-  }, [boardId, loading]);
+  }, [boardId, loading, supabase]);
 
   // --- Navigation & Copy/Paste ---
   const getDayOffset = useCallback((dateStr: string) => {
@@ -522,7 +527,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
     setSelection([]);
     await supabase.from('itinerary_versions').delete().eq('id', deletedId);
     scheduleSyncToSupabase();
-  }, [versions, safeIndex, activeVersionIndex, pushUndo, scheduleSyncToSupabase]);
+  }, [versions, safeIndex, activeVersionIndex, pushUndo, scheduleSyncToSupabase, supabase]);
 
   const undo = useCallback(() => {
     if (undoStackRef.current.length === 0) return;
