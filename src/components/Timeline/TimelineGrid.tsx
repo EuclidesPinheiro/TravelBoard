@@ -12,7 +12,7 @@ import { SelectionItem } from '../../types';
 const ROW_HEIGHT = 72;
 
 export function TimelineGrid() {
-  const { itinerary, zoomLevel, setItinerary, setSelection } = useItinerary();
+  const { itinerary, zoomLevel, setItinerary, setSelection, setIsMarqueeActive, isMarqueeActive } = useItinerary();
   const days = getTimelineDays(itinerary.startDate, itinerary.endDate);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
@@ -26,7 +26,7 @@ export function TimelineGrid() {
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (target.closest('[data-city-block], [data-transport-connector], [data-add-transport-btn], [data-traveler-info], [data-sidebar], [data-popover], [data-grid-cell], [data-traveler-row-header], button, input, textarea')) return;
+    if (target.closest('[data-city-block], [data-transport-connector], [data-add-transport-btn], [data-traveler-info], [data-sidebar], [data-popover], button, input, textarea')) return;
 
     const rect = scrollRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -47,6 +47,11 @@ export function TimelineGrid() {
       const rect = scrollRef.current.getBoundingClientRect();
       const endX = e.clientX - rect.left + scrollRef.current.scrollLeft;
       const endY = e.clientY - rect.top + scrollRef.current.scrollTop;
+
+      if (!isMarqueeActive && (Math.abs(endX - marqueeRef.current.startX) > 5 || Math.abs(endY - marqueeRef.current.startY) > 5)) {
+        setIsMarqueeActive(true);
+      }
+
       setMarquee(prev => prev ? { ...prev, endX, endY } : null);
     }
 
@@ -62,6 +67,7 @@ export function TimelineGrid() {
           if (!marqueeRef.current.isMulti) setSelection([]);
           setMarquee(null);
           marqueeRef.current = null;
+          setIsMarqueeActive(false);
           return;
         }
 
@@ -119,6 +125,7 @@ export function TimelineGrid() {
       }
       setMarquee(null);
       marqueeRef.current = null;
+      setIsMarqueeActive(false);
     }
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -287,7 +294,9 @@ export function TimelineGrid() {
           {/* Add Traveler Row */}
           <div
             className="flex h-[52px] border border-slate-700 hover:bg-indigo-900/40/40 cursor-pointer transition-colors group"
-            onClick={() => setIsAddTravelerOpen(true)}
+            onClick={() => {
+              if (!isMarqueeActive) setIsAddTravelerOpen(true);
+            }}
           >
             <div className="w-64 shrink-0 sticky left-0 z-20 bg-slate-950 group-hover:bg-indigo-900/40/40 border-r border-slate-700 transition-colors flex items-center justify-center shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
               <div className="flex items-center gap-2 text-indigo-300 group-hover:text-indigo-400 transition-colors">

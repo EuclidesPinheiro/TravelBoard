@@ -30,6 +30,8 @@ interface ItineraryContextType {
   canUndo: boolean;
   canRedo: boolean;
   boardId: string;
+  isMarqueeActive: boolean;
+  setIsMarqueeActive: (active: boolean) => void;
 }
 
 const ItineraryContext = createContext<ItineraryContextType | undefined>(undefined);
@@ -164,6 +166,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
 
   const [highlightedTravelerId, setHighlightedTravelerId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(80);
+  const [isMarqueeActive, setIsMarqueeActive] = useState(false);
 
   // --- Refs & Internal Sync State ---
   const undoStackRef = useRef<UndoEntry[]>([]);
@@ -464,6 +467,7 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
       itinerary, setItinerary, versions, activeVersionIndex: safeIndex, switchVersion, cloneVersion, deleteVersion,
       selection, setSelection, focusedCell, setFocusedCell, copy, paste, highlightedTravelerId, setHighlightedTravelerId,
       zoomLevel, setZoomLevel, undo, redo, canUndo, canRedo, boardId,
+      isMarqueeActive, setIsMarqueeActive,
     }}>
       {children}
     </ItineraryContext.Provider>

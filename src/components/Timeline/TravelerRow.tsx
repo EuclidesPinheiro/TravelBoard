@@ -38,6 +38,7 @@ export function TravelerRow({
     setFocusedCell,
     highlightedTravelerId,
     setHighlightedTravelerId,
+    isMarqueeActive,
   } = useItinerary();
   const itineraryStart = startOfDay(parseISO(itinerary.startDate));
   const [popover, setPopover] = useState<{
@@ -110,7 +111,7 @@ export function TravelerRow({
   }
 
   function handleRowClick() {
-    if (wasDraggingRef.current) return;
+    if (wasDraggingRef.current || isMarqueeActive) return;
     if (isHighlighted) {
       setHighlightedTravelerId(null);
     } else {
@@ -233,7 +234,7 @@ export function TravelerRow({
               onMouseEnter={() => onDayHover(i)}
               onMouseLeave={() => onDayHover(null)}
               onClick={(e) => {
-                if (isEmpty) {
+                if (isEmpty && !isMarqueeActive) {
                   handleGridCellClick(i);
                   handleEmptyCellClick(i, e);
                 }
