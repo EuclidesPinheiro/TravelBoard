@@ -16,46 +16,35 @@ interface AddCityPopoverProps {
 export function AddCityPopover({ travelerId, date, position, onClose }: AddCityPopoverProps) {
   const { itinerary, setItinerary, paste } = useItinerary();
   const [search, setSearch] = useState('');
-  const [stayDays, setStayDays] = useState(1);
 
   // Suggested times based on existing cities on the same day
-  const { defaultStartTime, defaultEndTime } = useMemo(() => {
+  const { startTime, endTime } = useMemo(() => {
     const traveler = itinerary.travelers.find((t) => t.id === travelerId);
-    if (!traveler) return { defaultStartTime: '00:00', defaultEndTime: '23:59' };
+    if (!traveler) return { startTime: '00:00', endTime: '23:59' };
 
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const cityOnDay = traveler.segments.find((s) => {
-      if (s.type !== 'city') return false;
-      const city = s as CitySegment;
-      return city.startDate === dateStr || city.endDate === dateStr;
-    }) as CitySegment | undefined;
+    const dayStr = format(date, 'yyyy-MM-dd');
 
-    if (cityOnDay) {
-      if (cityOnDay.endDate === dateStr) {
-        // There's a city ending today, suggest starting after it
-        return {
-          defaultStartTime: cityOnDay.endTime || '12:00',
-          defaultEndTime: '23:59',
-        };
-      } else if (cityOnDay.startDate === dateStr) {
-        // There's a city starting today, suggest ending before it
-        return {
-          defaultStartTime: '00:00',
-          defaultEndTime: cityOnDay.startTime || '12:00',
-        };
-      }
+    let start = '00:00';
+    let end = '23:59';
+
+    // Find city ending on this day
+    const cityEndingToday = traveler.segments.find(s => 
+      s.type === 'city' && (s as CitySegment).endDate === dayStr
+    ) as CitySegment;
+    if (cityEndingToday) {
+      start = cityEndingToday.endTime || '00:00';
     }
 
-    return { defaultStartTime: '00:00', defaultEndTime: '23:59' };
+    // Find city starting on this day (excluding the one that ends today if it's the same)
+    const cityStartingToday = traveler.segments.find(s => 
+      s.type === 'city' && (s as CitySegment).startDate === dayStr && s.id !== cityEndingToday?.id
+    ) as CitySegment;
+    if (cityStartingToday) {
+      end = cityStartingToday.startTime || '23:59';
+    }
+
+    return { startTime: start, endTime: end };
   }, [itinerary, travelerId, date]);
-
-  const [startTime, setStartTime] = useState(defaultStartTime);
-  const [endTime, setEndTime] = useState(defaultEndTime);
-
-  useEffect(() => {
-    setStartTime(defaultStartTime);
-    setEndTime(defaultEndTime);
-  }, [defaultStartTime, defaultEndTime]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -97,11 +86,10 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
   }, [onClose]);
 
   function addCity(cityName: string, country: string) {
-    const startDateStr = format(date, "yyyy-MM-dd");
-    const endDateStr = format(addDays(date, stayDays - 1), "yyyy-MM-dd");
+    const dateStr = format(date, "yyyy-MM-dd");
 
-    const newStartDt = `${startDateStr}T${startTime}`;
-    const newEndDt = `${endDateStr}T${endTime}`;
+    const newStartDt = `${dateStr}T${startTime}`;
+    const newEndDt = `${dateStr}T${endTime}`;
 
     if (newStartDt >= newEndDt) {
       alert("Start time must be before end time.");
@@ -116,9 +104,9 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
       id: uuidv4(),
       cityName,
       country,
-      startDate: startDateStr,
+      startDate: dateStr,
       startTime: startTime,
-      endDate: endDateStr,
+      endDate: dateStr,
       endTime: endTime,
     };
 
@@ -165,10 +153,9 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
     const traveler = itinerary.travelers.find((t) => t.id === travelerId);
     if (!traveler) return false;
 
-    const startDateStr = format(date, "yyyy-MM-dd");
-    const endDateStr = format(addDays(date, stayDays - 1), "yyyy-MM-dd");
-    const startDt = `${startDateStr}T${startTime}`;
-    const endDt = `${endDateStr}T${endTime}`;
+    const dateStr = format(date, "yyyy-MM-dd");
+    const startDt = `${dateStr}T${startTime}`;
+    const endDt = `${dateStr}T${endTime}`;
 
     return traveler.segments.some((s) => {
       if (s.type !== "city") return false;
@@ -177,7 +164,7 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
       const otherEnd = `${other.endDate}T${other.endTime || "23:59"}`;
       return startDt < otherEnd && endDt > otherStart;
     });
-  }, [itinerary, travelerId, date, stayDays, startTime, endTime]);
+  }, [itinerary, travelerId, date, startTime, endTime]);
 
   return (
     <div
@@ -191,43 +178,11 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
           Add city on <span className="text-slate-600">{dateLabel}</span>
         </p>
 
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <div>
-            <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Stay Duration</label>
-            <select
-              value={stayDays}
-              onChange={(e) => setStayDays(Number(e.target.value))}
-              className="w-full text-xs border border-slate-700 rounded-md px-2 py-1.5 bg-slate-950 text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              {Array.from({ length: 14 }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>
-                  {n} {n === 1 ? "day" : "days"}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Start Time</label>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-full text-xs border border-slate-700 rounded-md px-2 py-1 bg-slate-950 text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
+        <div className="flex items-center gap-2 mt-3">
+           <p className="text-[10px] text-slate-500 font-medium">
+             Times: <span className="text-slate-400">{startTime} — {endTime}</span>
+           </p>
         </div>
-
-        {stayDays === 1 && (
-          <div className="mt-3">
-            <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">End Time</label>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="w-full text-xs border border-slate-700 rounded-md px-2 py-1 bg-slate-950 text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-        )}
 
         {hasOverlap && (
           <p className="text-[10px] text-red-500 mt-2 font-medium">
