@@ -19,32 +19,41 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
   const prevTransport = prevSeg && prevSeg.type === 'transport' ? prevSeg as TransportSegment : null;
   const nextTransport = nextSeg && nextSeg.type === 'transport' ? nextSeg as TransportSegment : null;
 
-  // Real arrival: transport arrival or start of startDate
-  const arrivalDate = prevTransport ? prevTransport.arrivalDate : segment.startDate;
-  const arrivalTime = prevTransport ? prevTransport.arrivalTime : '';
+  // Real arrival: use segment's own times, fallback to transport if needed (though they should be synced)
+  const arrivalDate = segment.startDate;
+  const arrivalTime = segment.startTime || "";
 
-  // Real departure: transport departure or end of endDate
-  const departureDate = nextTransport ? nextTransport.departureDate : segment.endDate;
-  const departureTime = nextTransport ? nextTransport.departureTime : '';
+  // Real departure: use segment's own times
+  const departureDate = segment.endDate;
+  const departureTime = segment.endTime || "";
 
   // City time boundaries for stay validation
-  const cityMinDt = arrivalTime ? `${arrivalDate}T${arrivalTime}` : `${arrivalDate}T00:00`;
-  const cityMaxDt = departureTime ? `${departureDate}T${departureTime}` : `${departureDate}T23:59`;
+  const cityMinDt = arrivalTime
+    ? `${arrivalDate}T${arrivalTime}`
+    : `${arrivalDate}T00:00`;
+  const cityMaxDt = departureTime
+    ? `${departureDate}T${departureTime}`
+    : `${departureDate}T23:59`;
 
-  const days = differenceInDays(parseISO(segment.endDate), parseISO(segment.startDate)) + 1;
+  const days =
+    differenceInDays(parseISO(segment.endDate), parseISO(segment.startDate)) + 1;
 
   function toDateTime(date: string, time: string): string {
     return time ? `${date}T${time}` : `${date}T00:00`;
   }
 
-  function updateSegment(travelerId: string, segId: string, updater: (seg: any) => any) {
-    setItinerary(prev => ({
+  function updateSegment(
+    travelerId: string,
+    segId: string,
+    updater: (seg: any) => any,
+  ) {
+    setItinerary((prev) => ({
       ...prev,
-      travelers: prev.travelers.map(t => {
+      travelers: prev.travelers.map((t) => {
         if (t.id !== travelerId) return t;
         return {
           ...t,
-          segments: t.segments.map(s => s.id === segId ? updater(s) : s),
+          segments: t.segments.map((s) => (s.id === segId ? updater(s) : s)),
         };
       }),
     }));
@@ -55,18 +64,33 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     const newArrival = toDateTime(newDate, arrivalTime);
     const depDt = toDateTime(departureDate, departureTime);
     if (newArrival > depDt) return;
-    updateSegment(traveler.id, segment.id, s => ({ ...s, startDate: newDate }));
+    updateSegment(traveler.id, segment.id, (s) => ({
+      ...s,
+      startDate: newDate,
+    }));
     if (prevTransport) {
-      updateSegment(traveler.id, prevTransport.id, s => ({ ...s, arrivalDate: newDate }));
+      updateSegment(traveler.id, prevTransport.id, (s) => ({
+        ...s,
+        arrivalDate: newDate,
+      }));
     }
   }
 
   function handleArrivalTimeChange(newTime: string) {
-    if (!prevTransport || !newTime) return;
+    if (!newTime) return;
     const newArrival = toDateTime(arrivalDate, newTime);
     const depDt = toDateTime(departureDate, departureTime);
     if (newArrival > depDt) return;
-    updateSegment(traveler.id, prevTransport.id, s => ({ ...s, arrivalTime: newTime }));
+    updateSegment(traveler.id, segment.id, (s) => ({
+      ...s,
+      startTime: newTime,
+    }));
+    if (prevTransport) {
+      updateSegment(traveler.id, prevTransport.id, (s) => ({
+        ...s,
+        arrivalTime: newTime,
+      }));
+    }
   }
 
   function handleDepartureDateChange(newDate: string) {
@@ -74,18 +98,27 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     const arrDt = toDateTime(arrivalDate, arrivalTime);
     const newDeparture = toDateTime(newDate, departureTime);
     if (newDeparture < arrDt) return;
-    updateSegment(traveler.id, segment.id, s => ({ ...s, endDate: newDate }));
+    updateSegment(traveler.id, segment.id, (s) => ({ ...s, endDate: newDate }));
     if (nextTransport) {
-      updateSegment(traveler.id, nextTransport.id, s => ({ ...s, departureDate: newDate }));
+      updateSegment(traveler.id, nextTransport.id, (s) => ({
+        ...s,
+        departureDate: newDate,
+      }));
     }
   }
 
   function handleDepartureTimeChange(newTime: string) {
-    if (!nextTransport || !newTime) return;
+    if (!newTime) return;
     const arrDt = toDateTime(arrivalDate, arrivalTime);
     const newDeparture = toDateTime(departureDate, newTime);
     if (newDeparture < arrDt) return;
-    updateSegment(traveler.id, nextTransport.id, s => ({ ...s, departureTime: newTime }));
+    updateSegment(traveler.id, segment.id, (s) => ({ ...s, endTime: newTime }));
+    if (nextTransport) {
+      updateSegment(traveler.id, nextTransport.id, (s) => ({
+        ...s,
+        departureTime: newTime,
+      }));
+    }
   }
 
   // Find co-presence
@@ -138,15 +171,74 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     updateStays(stays.map(s => s.id === stayId ? updater(s) : s));
   }
 
+  function handleCityNameChange(newName: string) {
+    updateSegment(traveler.id, segment.id, (s) => ({
+      ...s,
+      cityName: newName,
+    }));
+    if (prevTransport) {
+      updateSegment(traveler.id, prevTransport.id, (s) => ({
+        ...s,
+        to: newName,
+      }));
+    }
+    if (nextTransport) {
+      updateSegment(traveler.id, nextTransport.id, (s) => ({
+        ...s,
+        from: newName,
+      }));
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2 text-indigo-400 mb-1">
-          <MapPin size={16} />
-          <span className="text-xs font-semibold uppercase tracking-wider">City Stay</span>
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0 mr-2">
+          <div className="flex items-center gap-2 text-indigo-400 mb-1">
+            <MapPin size={16} />
+            <span className="text-xs font-semibold uppercase tracking-wider">
+              City Stay
+            </span>
+          </div>
+          <input
+            type="text"
+            value={segment.cityName}
+            onChange={(e) => handleCityNameChange(e.target.value)}
+            className="w-full text-xl font-bold text-slate-50 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate"
+          />
+          <input
+            type="text"
+            value={segment.country || ""}
+            onChange={(e) =>
+              updateSegment(traveler.id, segment.id, (s) => ({
+                ...s,
+                country: e.target.value,
+              }))
+            }
+            placeholder="Add country..."
+            className="w-full text-sm text-slate-500 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate"
+          />
         </div>
-        <h3 className="text-xl font-bold text-slate-50">{segment.cityName}</h3>
-        <p className="text-sm text-slate-500">{segment.country}</p>
+        <button
+          onClick={() => {
+            if (confirm(`Remove ${segment.cityName} from this traveler?`)) {
+              setItinerary((prev) => ({
+                ...prev,
+                travelers: prev.travelers.map((t) => {
+                  if (t.id !== traveler.id) return t;
+                  return {
+                    ...t,
+                    segments: t.segments.filter((s) => s.id !== segmentId),
+                  };
+                }),
+              }));
+            }
+          }}
+          className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors shrink-0"
+          title="Delete city"
+        >
+          <Trash2 size={20} />
+        </button>
       </div>
 
       <div className="bg-slate-900 rounded-xl p-4 space-y-3 border border-slate-800">
@@ -160,19 +252,15 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
                 type="date"
                 value={arrivalDate}
                 max={departureDate}
-                onChange={e => handleArrivalDateChange(e.target.value)}
+                onChange={(e) => handleArrivalDateChange(e.target.value)}
                 className="text-sm font-medium text-slate-50 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[130px]"
               />
-              {prevTransport ? (
-                <input
-                  type="time"
-                  value={arrivalTime}
-                  onChange={e => handleArrivalTimeChange(e.target.value)}
-                  className="text-sm font-medium text-indigo-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[90px]"
-                />
-              ) : (
-                <span className="text-xs text-slate-500 italic">no transport</span>
-              )}
+              <input
+                type="time"
+                value={arrivalTime}
+                onChange={(e) => handleArrivalTimeChange(e.target.value)}
+                className="text-sm font-medium text-indigo-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[90px]"
+              />
             </div>
             {prevTransport && (
               <div className="text-xs text-slate-500 mt-1">from {prevTransport.from}</div>
@@ -190,19 +278,15 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
                 type="date"
                 value={departureDate}
                 min={arrivalDate}
-                onChange={e => handleDepartureDateChange(e.target.value)}
+                onChange={(e) => handleDepartureDateChange(e.target.value)}
                 className="text-sm font-medium text-slate-50 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[130px]"
               />
-              {nextTransport ? (
-                <input
-                  type="time"
-                  value={departureTime}
-                  onChange={e => handleDepartureTimeChange(e.target.value)}
-                  className="text-sm font-medium text-indigo-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[90px]"
-                />
-              ) : (
-                <span className="text-xs text-slate-500 italic">no transport</span>
-              )}
+              <input
+                type="time"
+                value={departureTime}
+                onChange={(e) => handleDepartureTimeChange(e.target.value)}
+                className="text-sm font-medium text-indigo-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[90px]"
+              />
             </div>
             {nextTransport && (
               <div className="text-xs text-slate-500 mt-1">to {nextTransport.to}</div>

@@ -19,16 +19,49 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
   if (!segment) return null;
 
   function updateSegment(updates: Partial<TransportSegment>) {
-    setItinerary(prev => ({
-      ...prev,
-      travelers: prev.travelers.map(t => {
-        if (t.id !== traveler.id) return t;
-        return {
-          ...t,
-          segments: t.segments.map(s => s.id === segmentId ? { ...s, ...updates } : s),
+    setItinerary((prev) => {
+      const travelerIdx = prev.travelers.findIndex((t) => t.id === traveler.id);
+      if (travelerIdx === -1) return prev;
+
+      const newTravelers = [...prev.travelers];
+      const newSegments = [...newTravelers[travelerIdx].segments];
+      const segIdx = newSegments.findIndex((s) => s.id === segmentId);
+      if (segIdx === -1) return prev;
+
+      const oldTransport = newSegments[segIdx] as TransportSegment;
+      const newTransport = { ...oldTransport, ...updates };
+      newSegments[segIdx] = newTransport;
+
+      // Sync back to cities
+      if (segIdx > 0 && newSegments[segIdx - 1].type === "city") {
+        const city = newSegments[segIdx - 1] as CitySegment;
+        newSegments[segIdx - 1] = {
+          ...city,
+          cityName: newTransport.from,
+          endDate: newTransport.departureDate,
+          endTime: newTransport.departureTime,
         };
-      }),
-    }));
+      }
+
+      if (
+        segIdx < newSegments.length - 1 &&
+        newSegments[segIdx + 1].type === "city"
+      ) {
+        const city = newSegments[segIdx + 1] as CitySegment;
+        newSegments[segIdx + 1] = {
+          ...city,
+          cityName: newTransport.to,
+          startDate: newTransport.arrivalDate,
+          startTime: newTransport.arrivalTime,
+        };
+      }
+
+      newTravelers[travelerIdx] = {
+        ...newTravelers[travelerIdx],
+        segments: newSegments,
+      };
+      return { ...prev, travelers: newTravelers };
+    });
   }
 
   // Calculate duration using parseISO (never new Date for date strings)

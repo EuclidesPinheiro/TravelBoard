@@ -49,7 +49,7 @@ function cleanupOrphanedCityData(it: Itinerary): Itinerary {
   const activeCities = new Set<string>();
   for (const t of it.travelers) {
     for (const seg of t.segments) {
-      if (seg.type === 'city') activeCities.add((seg as CitySegment).cityName);
+      if (seg.type === "city") activeCities.add((seg as CitySegment).cityName);
     }
   }
 
@@ -58,11 +58,14 @@ function cleanupOrphanedCityData(it: Itinerary): Itinerary {
   let attractions = it.attractions;
   if (attractions) {
     for (const city of Object.keys(attractions)) {
-      if (!activeCities.has(city)) { changed = true; break; }
+      if (!activeCities.has(city)) {
+        changed = true;
+        break;
+      }
     }
     if (changed) {
       attractions = Object.fromEntries(
-        Object.entries(attractions).filter(([city]) => activeCities.has(city))
+        Object.entries(attractions).filter(([city]) => activeCities.has(city)),
       );
     }
   }
@@ -71,17 +74,122 @@ function cleanupOrphanedCityData(it: Itinerary): Itinerary {
   if (checklists) {
     let clChanged = false;
     for (const city of Object.keys(checklists)) {
-      if (!activeCities.has(city)) { clChanged = true; break; }
+      if (!activeCities.has(city)) {
+        clChanged = true;
+        break;
+      }
     }
     if (clChanged) {
       checklists = Object.fromEntries(
-        Object.entries(checklists).filter(([city]) => activeCities.has(city))
+        Object.entries(checklists).filter(([city]) => activeCities.has(city)),
       );
       changed = true;
     }
   }
 
   return changed ? { ...it, attractions, checklists } : it;
+}
+
+function syncTravelSegments(it: Itinerary): Itinerary {
+  return {
+    ...it,
+    travelers: it.travelers.map((t) => {
+      // 1. Separate cities and existing transports
+      const cities = t.segments
+        .filter((s) => s.type === "city")
+        .sort(
+          (a, b) =>
+            (a as CitySegment).startDate.localeCompare(
+              (b as CitySegment).startDate,
+            ) ||
+            (a as CitySegment).startTime?.localeCompare(
+              (b as CitySegment).startTime || "00:00",
+            ) ||
+            0,
+        ) as CitySegment[];
+
+      const existingTransports = t.segments.filter(
+        (s) => s.type === "transport",
+      ) as any[];
+
+      // Map current transport positions to their data to try and preserve it even if cities rename
+      // We can find where a transport WAS in the sequence of cities
+      const oldCityOrder = t.segments
+        .filter((s) => s.type === "city")
+        .map((s) => s.id);
+
+      const newSegments: Segment[] = [];
+
+      for (let i = 0; i < cities.length; i++) {
+        const currentCity = cities[i];
+        newSegments.push(currentCity);
+
+        if (i < cities.length - 1) {
+          const nextCity = cities[i + 1];
+
+          // 1. Try exact name match
+          let transport = existingTransports.find(
+            (tr) => tr.from === currentCity.cityName && tr.to === nextCity.cityName,
+          );
+
+          // 2. Try positional match if the IDs of the flanking cities matched an old pair
+          if (!transport) {
+            const oldIdxCurrent = oldCityOrder.indexOf(currentCity.id);
+            const oldIdxNext = oldCityOrder.indexOf(nextCity.id);
+            if (
+              oldIdxCurrent !== -1 &&
+              oldIdxNext !== -1 &&
+              oldIdxNext === oldIdxCurrent + 1
+            ) {
+              // These cities were adjacent before! Find the transport that was between them.
+              // In the original segments array, it would be at some index.
+              // Actually, simpler: find transport that 'from' the old name of currentCity.
+              // But we have the old segments, let's just find it.
+              const oldSegIdx = t.segments.findIndex(s => s.id === currentCity.id);
+              if (oldSegIdx !== -1 && oldSegIdx < t.segments.length - 1) {
+                const maybeTrans = t.segments[oldSegIdx + 1];
+                if (maybeTrans.type === 'transport') {
+                  transport = maybeTrans;
+                }
+              }
+            }
+          }
+
+          const departureDate = currentCity.endDate;
+          const departureTime = currentCity.endTime || "23:59";
+          const arrivalDate = nextCity.startDate;
+          const arrivalTime = nextCity.startTime || "00:00";
+
+          if (transport) {
+            newSegments.push({
+              ...transport,
+              from: currentCity.cityName,
+              to: nextCity.cityName,
+              departureDate,
+              departureTime,
+              arrivalDate,
+              arrivalTime,
+            });
+          } else {
+            // Create new automatic transport
+            newSegments.push({
+              type: "transport",
+              id: uuidv4(),
+              mode: "flight", // default
+              from: currentCity.cityName,
+              to: nextCity.cityName,
+              departureDate,
+              departureTime,
+              arrivalDate,
+              arrivalTime,
+            });
+          }
+        }
+      }
+
+      return { ...t, segments: newSegments };
+    }),
+  };
 }
 
 // --- DB row <-> Itinerary conversion ---
@@ -214,7 +322,9 @@ export function ItineraryProvider({ children, boardId }: ItineraryProviderProps)
       }
       const updated = [...prev];
       let newItinerary = typeof action === 'function' ? action(prev[safeIndex]) : action;
-      updated[safeIndex] = cleanupOrphanedCityData(newItinerary);
+      newItinerary = cleanupOrphanedCityData(newItinerary);
+      newItinerary = syncTravelSegments(newItinerary);
+      updated[safeIndex] = newItinerary;
       return updated;
     });
     scheduleSyncToSupabase();

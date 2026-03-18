@@ -62,7 +62,7 @@ export function TravelerRow({
   }
   prevIsDragging.current = isDragging;
 
-  // Compute which day indices are occupied by a segment
+  // Compute which day indices are occupied by a CITY segment
   const occupiedDays = useMemo(() => {
     const occupied = new Set<number>();
     for (const segment of traveler.segments) {
@@ -77,20 +77,15 @@ export function TravelerRow({
           itineraryStart,
         );
         for (let d = start; d <= end; d++) {
-          if (d >= 0 && d < days.length) occupied.add(d);
-        }
-      } else {
-        const trans = segment as TransportSegment;
-        const depDay = differenceInDays(
-          startOfDay(parseISO(trans.departureDate)),
-          itineraryStart,
-        );
-        const arrDay = differenceInDays(
-          startOfDay(parseISO(trans.arrivalDate)),
-          itineraryStart,
-        );
-        for (let d = depDay; d <= arrDay; d++) {
-          if (d >= 0 && d < days.length) occupied.add(d);
+          if (d >= 0 && d < days.length) {
+            // A day is FULLY occupied only if it's between start/end
+            // or if it IS the start/end and the time is 00:00/23:59
+            const isFullStart = d > start || (city.startTime || "00:00") === "00:00";
+            const isFullEnd = d < end || (city.endTime || "23:59") === "23:59";
+            if (isFullStart && isFullEnd) {
+              occupied.add(d);
+            }
+          }
         }
       }
     }
@@ -252,13 +247,22 @@ export function TravelerRow({
               startOfDay(parseISO(citySeg.startDate)),
               itineraryStart,
             );
+            const [startH, startM] = (citySeg.startTime || "00:00")
+              .split(":")
+              .map(Number);
+            const startFraction = (startH + startM / 60) / 24;
+
             const endOffsetDays = differenceInDays(
               startOfDay(parseISO(citySeg.endDate)),
               itineraryStart,
             );
+            const [endH, endM] = (citySeg.endTime || "23:59")
+              .split(":")
+              .map(Number);
+            const endFraction = (endH + endM / 60) / 24;
 
-            const left = startOffsetDays * zoomLevel;
-            const right = (endOffsetDays + 1) * zoomLevel;
+            const left = (startOffsetDays + startFraction) * zoomLevel;
+            const right = (endOffsetDays + endFraction) * zoomLevel;
             const width = Math.max(0, right - left);
 
             if (right < 0 || left > days.length * zoomLevel) return null;
