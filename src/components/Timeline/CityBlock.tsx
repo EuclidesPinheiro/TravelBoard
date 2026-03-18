@@ -4,7 +4,7 @@ import { CitySegment, Traveler, SelectionItem } from "../../types";
 import { useItinerary } from "../../store/ItineraryContext";
 import { getCityColor } from "../../utils/cityColors";
 import { cn } from "../../utils/cn";
-import { Home, Plus } from "lucide-react";
+import { Home } from "lucide-react";
 import {
   addDays,
   parseISO,
@@ -12,6 +12,66 @@ import {
   differenceInDays,
   startOfDay,
 } from "date-fns";
+
+// --- Sub-day snap helpers ---
+
+const SNAP_MINUTES = 15;
+const SNAPS_PER_DAY = (24 * 60) / SNAP_MINUTES; // 96
+const MIN_CITY_MS = SNAP_MINUTES * 60000;
+
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** Shift a date+time by an exact number of minutes (handles day overflow). */
+function shiftDateTime(
+  dateStr: string,
+  timeStr: string,
+  deltaMinutes: number,
+): { date: string; time: string } {
+  const total = timeToMinutes(timeStr) + deltaMinutes;
+  const dayShift = Math.floor(total / 1440);
+  const remainder = total - dayShift * 1440;
+  return {
+    date: format(addDays(parseISO(dateStr), dayShift), "yyyy-MM-dd"),
+    time: minutesToTime(remainder),
+  };
+}
+
+/** Shift a date+time by raw minutes, then snap the result to the nearest SNAP_MINUTES boundary. */
+function snapToGrid(
+  dateStr: string,
+  timeStr: string,
+  rawDeltaMinutes: number,
+): { date: string; time: string } {
+  const total = timeToMinutes(timeStr) + rawDeltaMinutes;
+  const snapped = Math.round(total / SNAP_MINUTES) * SNAP_MINUTES;
+  const dayShift = Math.floor(snapped / 1440);
+  const remainder = snapped - dayShift * 1440;
+  return {
+    date: format(addDays(parseISO(dateStr), dayShift), "yyyy-MM-dd"),
+    time: minutesToTime(remainder),
+  };
+}
+
+function dateTimeToMs(dateStr: string, timeStr: string): number {
+  return parseISO(dateStr).getTime() + timeToMinutes(timeStr) * 60000;
+}
+
+function msToDateTime(ms: number): { date: string; time: string } {
+  const d = new Date(ms);
+  return {
+    date: format(d, "yyyy-MM-dd"),
+    time: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+  };
+}
 
 interface CityBlockProps {
   key?: string;
@@ -31,24 +91,6 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   const cityColor = getCityColor(segment.cityName);
   const hasStays = segment.stays && segment.stays.length > 0;
 
-  const [transportPopover, setTransportPopover] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-
-  // Check if there's already a transport after this city
-  const segIndex = traveler.segments.findIndex((s) => s.id === segment.id);
-  const nextSeg =
-    segIndex < traveler.segments.length - 1
-      ? traveler.segments[segIndex + 1]
-      : null;
-  const hasTransportAfter = nextSeg?.type === "transport";
-
-  // Find the next city segment (skipping any transport)
-  const nextCity = traveler.segments
-    .slice(segIndex + 1)
-    .find((s) => s.type === "city") as CitySegment | undefined;
-
   // --- Drag & Drop (using refs to avoid stale closures) ---
   const dragRef = useRef<{
     type: DragType;
@@ -61,7 +103,10 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   zoomRef.current = zoomLevel;
   const blockRef = useRef<HTMLDivElement>(null);
 
-  function commitDrag(type: DragType, daysDelta: number) {
+  function commitDrag(type: DragType, rawDeltaX: number) {
+    const zoom = zoomRef.current;
+    const rawDeltaMinutes = (rawDeltaX * 1440) / zoom;
+
     setItinerary((prev) => ({
       ...prev,
       travelers: prev.travelers.map((t) => {
@@ -71,24 +116,43 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         if (segIdx === -1) return t;
 
         const city = newSegments[segIdx] as CitySegment;
-        const start = parseISO(city.startDate);
-        const end = parseISO(city.endDate);
+        const sTime = city.startTime || "00:00";
+        const eTime = city.endTime || "23:59";
 
         let updatedCity = { ...city };
         if (type === "move") {
+          const snappedDelta =
+            Math.round(rawDeltaMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+          if (snappedDelta === 0) return t;
+          const newStart = shiftDateTime(city.startDate, sTime, snappedDelta);
+          const newEnd = shiftDateTime(city.endDate, eTime, snappedDelta);
           updatedCity = {
             ...city,
-            startDate: format(addDays(start, daysDelta), "yyyy-MM-dd"),
-            endDate: format(addDays(end, daysDelta), "yyyy-MM-dd"),
+            startDate: newStart.date,
+            startTime: newStart.time,
+            endDate: newEnd.date,
+            endTime: newEnd.time,
           };
         } else if (type === "resize-left") {
-          const newStart = addDays(start, daysDelta);
-          if (newStart > end) return t;
-          updatedCity = { ...city, startDate: format(newStart, "yyyy-MM-dd") };
+          const newStart = snapToGrid(city.startDate, sTime, rawDeltaMinutes);
+          const newStartMs = dateTimeToMs(newStart.date, newStart.time);
+          const endMs = dateTimeToMs(city.endDate, eTime);
+          if (newStartMs >= endMs) return t;
+          updatedCity = {
+            ...city,
+            startDate: newStart.date,
+            startTime: newStart.time,
+          };
         } else {
-          const newEnd = addDays(end, daysDelta);
-          if (newEnd < start) return t;
-          updatedCity = { ...city, endDate: format(newEnd, "yyyy-MM-dd") };
+          const newEnd = snapToGrid(city.endDate, eTime, rawDeltaMinutes);
+          const startMs = dateTimeToMs(city.startDate, sTime);
+          const newEndMs = dateTimeToMs(newEnd.date, newEnd.time);
+          if (newEndMs <= startMs) return t;
+          updatedCity = {
+            ...city,
+            endDate: newEnd.date,
+            endTime: newEnd.time,
+          };
         }
 
         newSegments[segIdx] = updatedCity;
@@ -120,6 +184,91 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
           }
         }
 
+        // --- Overlap resolution: shorten adjacent cities ---
+        const updEndMs = dateTimeToMs(
+          updatedCity.endDate,
+          updatedCity.endTime || "23:59",
+        );
+        const updStartMs = dateTimeToMs(
+          updatedCity.startDate,
+          updatedCity.startTime || "00:00",
+        );
+
+        // Forward: push next city's start if our end overlaps it
+        if (type === "resize-right" || type === "move") {
+          let nextCityIdx = -1;
+          for (let i = segIdx + 1; i < newSegments.length; i++) {
+            if (newSegments[i].type === "city") {
+              nextCityIdx = i;
+              break;
+            }
+          }
+          if (nextCityIdx !== -1) {
+            const nc = newSegments[nextCityIdx] as CitySegment;
+            const ncStartMs = dateTimeToMs(
+              nc.startDate,
+              nc.startTime || "00:00",
+            );
+            const ncEndMs = dateTimeToMs(nc.endDate, nc.endTime || "23:59");
+            if (updEndMs > ncStartMs) {
+              if (updEndMs + MIN_CITY_MS > ncEndMs) return t; // would erase neighbour
+              const pushed = msToDateTime(updEndMs);
+              newSegments[nextCityIdx] = {
+                ...nc,
+                startDate: pushed.date,
+                startTime: pushed.time,
+              };
+              // Sync transport(s) between us and pushed city
+              for (let i = segIdx + 1; i < nextCityIdx; i++) {
+                if (newSegments[i].type === "transport") {
+                  newSegments[i] = {
+                    ...newSegments[i],
+                    arrivalDate: pushed.date,
+                    arrivalTime: pushed.time,
+                  };
+                }
+              }
+            }
+          }
+        }
+
+        // Backward: push prev city's end if our start overlaps it
+        if (type === "resize-left" || type === "move") {
+          let prevCityIdx = -1;
+          for (let i = segIdx - 1; i >= 0; i--) {
+            if (newSegments[i].type === "city") {
+              prevCityIdx = i;
+              break;
+            }
+          }
+          if (prevCityIdx !== -1) {
+            const pc = newSegments[prevCityIdx] as CitySegment;
+            const pcEndMs = dateTimeToMs(pc.endDate, pc.endTime || "23:59");
+            const pcStartMs = dateTimeToMs(
+              pc.startDate,
+              pc.startTime || "00:00",
+            );
+            if (updStartMs < pcEndMs) {
+              if (pcStartMs + MIN_CITY_MS > updStartMs) return t;
+              const pushed = msToDateTime(updStartMs);
+              newSegments[prevCityIdx] = {
+                ...pc,
+                endDate: pushed.date,
+                endTime: pushed.time,
+              };
+              for (let i = prevCityIdx + 1; i < segIdx; i++) {
+                if (newSegments[i].type === "transport") {
+                  newSegments[i] = {
+                    ...newSegments[i],
+                    departureDate: pushed.date,
+                    departureTime: pushed.time,
+                  };
+                }
+              }
+            }
+          }
+        }
+
         return { ...t, segments: newSegments };
       }),
     }));
@@ -142,10 +291,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
 
     const onMouseUp = () => {
       if (dragRef.current && didDragRef.current) {
-        const daysDelta = Math.round(dragRef.current.deltaX / zoomRef.current);
-        if (daysDelta !== 0) {
-          commitDrag(dragRef.current.type, daysDelta);
-        }
+        commitDrag(dragRef.current.type, dragRef.current.deltaX);
       }
       dragRef.current = null;
       forceRender((n) => n + 1);
@@ -195,40 +341,56 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     }
   }
 
-  // Visual offset during drag
+  // Visual offset during drag — snapped to 15-min grid
   const drag = dragRef.current;
   const hasDragged = drag !== null && didDragRef.current;
+  const pixelsPerSnap = zoomLevel / SNAPS_PER_DAY;
   let visualLeft = left + 2;
   let visualWidth = width - 4;
   if (hasDragged && drag) {
     if (drag.type === "move") {
-      visualLeft += drag.deltaX;
+      const snappedDelta =
+        Math.round(drag.deltaX / pixelsPerSnap) * pixelsPerSnap;
+      visualLeft += snappedDelta;
     } else if (drag.type === "resize-left") {
-      visualLeft += drag.deltaX;
-      visualWidth -= drag.deltaX;
+      const newLeftRaw = left + drag.deltaX;
+      const snappedLeft =
+        Math.round(newLeftRaw / pixelsPerSnap) * pixelsPerSnap;
+      const delta = snappedLeft - left;
+      visualLeft += delta;
+      visualWidth -= delta;
     } else {
-      visualWidth += drag.deltaX;
+      const currentRight = left + width;
+      const newRightRaw = currentRight + drag.deltaX;
+      const snappedRight =
+        Math.round(newRightRaw / pixelsPerSnap) * pixelsPerSnap;
+      const delta = snappedRight - currentRight;
+      visualWidth += delta;
     }
   }
   visualWidth = Math.max(visualWidth, 20);
 
   const isDragging = hasDragged;
 
-  // Snapped days preview during drag
+  // Snapped preview during drag
   let previewLabel = "";
   if (isDragging && drag) {
-    const daysDelta = Math.round(drag.deltaX / zoomLevel);
-    const start = parseISO(segment.startDate);
-    const end = parseISO(segment.endDate);
-    const startTime = segment.startTime ? ` ${segment.startTime}` : "";
-    const endTime = segment.endTime ? ` ${segment.endTime}` : "";
+    const rawDeltaMinutes = (drag.deltaX * 1440) / zoomLevel;
+    const sTime = segment.startTime || "00:00";
+    const eTime = segment.endTime || "23:59";
 
     if (drag.type === "move") {
-      previewLabel = `${format(addDays(start, daysDelta), "dd/MM")}${startTime} – ${format(addDays(end, daysDelta), "dd/MM")}${endTime}`;
+      const snappedDelta =
+        Math.round(rawDeltaMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+      const ns = shiftDateTime(segment.startDate, sTime, snappedDelta);
+      const ne = shiftDateTime(segment.endDate, eTime, snappedDelta);
+      previewLabel = `${format(parseISO(ns.date), "dd/MM")} ${ns.time} – ${format(parseISO(ne.date), "dd/MM")} ${ne.time}`;
     } else if (drag.type === "resize-left") {
-      previewLabel = `${format(addDays(start, daysDelta), "dd/MM")}${startTime} – ${format(end, "dd/MM")}${endTime}`;
+      const ns = snapToGrid(segment.startDate, sTime, rawDeltaMinutes);
+      previewLabel = `${format(parseISO(ns.date), "dd/MM")} ${ns.time} – ${format(parseISO(segment.endDate), "dd/MM")} ${eTime}`;
     } else {
-      previewLabel = `${format(start, "dd/MM")}${startTime} – ${format(addDays(end, daysDelta), "dd/MM")}${endTime}`;
+      const ne = snapToGrid(segment.endDate, eTime, rawDeltaMinutes);
+      previewLabel = `${format(parseISO(segment.startDate), "dd/MM")} ${sTime} – ${format(parseISO(ne.date), "dd/MM")} ${ne.time}`;
     }
   }
 
