@@ -18,10 +18,14 @@ export function TransportConnector({ segment, traveler, left, width }: Transport
   const isSelected = selection.some(s => s.type === 'transport' && s.segmentId === segment.id);
   const color = TRANSPORT_COLORS[segment.mode] || '#95a5a6';
 
+  const minWidth = 16;
+  const displayWidth = Math.max(width, minWidth);
+  const displayLeft = left - (displayWidth - width) / 2;
+
   return (
     <div
       className="absolute top-0 bottom-0 z-20 pointer-events-none"
-      style={{ left: `${left}px`, width: `${Math.max(width, 16)}px` }}
+      style={{ left: `${displayLeft}px`, width: `${displayWidth}px` }}
     >
       {/* Dashed column lines — only visible when selected */}
       {isSelected && (
