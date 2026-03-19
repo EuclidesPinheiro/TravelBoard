@@ -341,12 +341,21 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     }
   }
 
-  // Visual offset during drag — snapped to 15-min grid
+  // Visual positioning: center on interval's true center [left, left+width]
+  const minVisualWidth = 20;
+  let visualWidth = width - 4;
+  let visualLeft = left + 2;
+
+  if (visualWidth < minVisualWidth) {
+    const trueCenter = left + width / 2;
+    visualWidth = minVisualWidth;
+    visualLeft = trueCenter - visualWidth / 2;
+  }
+
   const drag = dragRef.current;
   const hasDragged = drag !== null && didDragRef.current;
   const pixelsPerSnap = zoomLevel / SNAPS_PER_DAY;
-  let visualLeft = left + 2;
-  let visualWidth = width - 4;
+
   if (hasDragged && drag) {
     if (drag.type === "move") {
       const snappedDelta =
@@ -367,8 +376,14 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
       const delta = snappedRight - currentRight;
       visualWidth += delta;
     }
+
+    // Still enforce min width during drag
+    if (visualWidth < minVisualWidth) {
+      const currentCenter = visualLeft + visualWidth / 2;
+      visualWidth = minVisualWidth;
+      visualLeft = currentCenter - visualWidth / 2;
+    }
   }
-  visualWidth = Math.max(visualWidth, 20);
 
   const isDragging = hasDragged;
 
