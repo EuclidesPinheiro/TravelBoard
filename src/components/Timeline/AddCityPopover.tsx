@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useItinerary } from '../../store/ItineraryContext';
-import { CitySegment } from '../../types';
+import { CitySegment, Stay } from '../../types';
 import { getCityColor } from '../../utils/cityColors';
 import { v4 as uuidv4 } from 'uuid';
 import { format, addDays } from 'date-fns';
@@ -11,40 +11,68 @@ interface AddCityPopoverProps {
   date: Date;
   position: { x: number; y: number };
   onClose: () => void;
+  splitSegmentId?: string;
 }
 
-export function AddCityPopover({ travelerId, date, position, onClose }: AddCityPopoverProps) {
+export function AddCityPopover({ travelerId, date, position, onClose, splitSegmentId }: AddCityPopoverProps) {
   const { itinerary, setItinerary, paste } = useItinerary();
   const [search, setSearch] = useState('');
 
+  const snap15 = (m: number) => Math.round(m / 15) * 15;
+  const minutesToTime = (m: number) => {
+    const clamped = Math.min(Math.max(m, 0), 23 * 60 + 59);
+    return `${String(Math.floor(clamped / 60)).padStart(2, '0')}:${String(clamped % 60).padStart(2, '0')}`;
+  };
+
   // Suggested times based on existing cities on the same day
-  const { startTime, endTime } = useMemo(() => {
+  const { startTime, endTime, splitSegment } = useMemo(() => {
     const traveler = itinerary.travelers.find((t) => t.id === travelerId);
-    if (!traveler) return { startTime: '00:00', endTime: '23:59' };
+    if (!traveler) return { startTime: '00:00', endTime: '23:59', splitSegment: undefined };
 
     const dayStr = format(date, 'yyyy-MM-dd');
 
+    // Split mode: carve time out of the covering city
+    if (splitSegmentId) {
+      const segment = traveler.segments.find(s => s.id === splitSegmentId) as CitySegment | undefined;
+      if (segment) {
+        const isFirstDay = segment.startDate === dayStr;
+        const isLastDay = segment.endDate === dayStr;
+        const dayStart = isFirstDay ? (segment.startTime || '00:00') : '00:00';
+        const dayEnd = isLastDay ? (segment.endTime || '23:59') : '23:59';
+
+        const [sh, sm] = dayStart.split(':').map(Number);
+        const [eh, em] = dayEnd.split(':').map(Number);
+        const startMin = sh * 60 + sm;
+        const endMin = eh * 60 + em;
+        const thirdDuration = Math.floor((endMin - startMin) / 3);
+
+        const newStart = snap15(startMin + thirdDuration);
+        const newEnd = snap15(startMin + 2 * thirdDuration);
+
+        return { startTime: minutesToTime(newStart), endTime: minutesToTime(newEnd), splitSegment: segment };
+      }
+    }
+
+    // Normal mode
     let start = '00:00';
     let end = '23:59';
 
-    // Find city ending on this day
-    const cityEndingToday = traveler.segments.find(s => 
+    const cityEndingToday = traveler.segments.find(s =>
       s.type === 'city' && (s as CitySegment).endDate === dayStr
     ) as CitySegment;
     if (cityEndingToday) {
       start = cityEndingToday.endTime || '00:00';
     }
 
-    // Find city starting on this day (excluding the one that ends today if it's the same)
-    const cityStartingToday = traveler.segments.find(s => 
+    const cityStartingToday = traveler.segments.find(s =>
       s.type === 'city' && (s as CitySegment).startDate === dayStr && s.id !== cityEndingToday?.id
     ) as CitySegment;
     if (cityStartingToday) {
       end = cityStartingToday.startTime || '23:59';
     }
 
-    return { startTime: start, endTime: end };
-  }, [itinerary, travelerId, date]);
+    return { startTime: start, endTime: end, splitSegment: undefined };
+  }, [itinerary, travelerId, date, splitSegmentId]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -81,12 +109,17 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
         onClose();
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside, true);
+    return () => document.removeEventListener('mousedown', handleClickOutside, true);
   }, [onClose]);
 
   function addCity(cityName: string, country: string) {
     const dateStr = format(date, "yyyy-MM-dd");
+
+    if (splitSegmentId && splitSegment) {
+      splitAndInsertCity(cityName, country, dateStr);
+      return;
+    }
 
     const newStartDt = `${dateStr}T${startTime}`;
     const newEndDt = `${dateStr}T${endTime}`;
@@ -96,7 +129,6 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
       return;
     }
 
-    // Ensure color is generated for new cities
     getCityColor(cityName);
 
     const newSegment: CitySegment = {
@@ -114,14 +146,11 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
       const traveler = prev.travelers.find((t) => t.id === travelerId);
       if (!traveler) return prev;
 
-      // VALIDATION: Check for overlaps with existing CITIES
       const hasOverlap = traveler.segments.some((s) => {
         if (s.type !== "city") return false;
         const other = s as CitySegment;
         const otherStart = `${other.startDate}T${other.startTime || "00:00"}`;
         const otherEnd = `${other.endDate}T${other.endTime || "23:59"}`;
-
-        // (StartA < EndB) and (EndA > StartB)
         return newStartDt < otherEnd && newEndDt > otherStart;
       });
 
@@ -142,6 +171,114 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
     onClose();
   }
 
+  function splitAndInsertCity(cityName: string, country: string, dateStr: string) {
+    getCityColor(cityName);
+
+    setItinerary((prev) => {
+      const traveler = prev.travelers.find((t) => t.id === travelerId);
+      if (!traveler) return prev;
+
+      const original = traveler.segments.find(s => s.id === splitSegmentId) as CitySegment | undefined;
+      if (!original) return prev;
+
+      const isFirstDay = original.startDate === dateStr;
+      const isLastDay = original.endDate === dateStr;
+      const dayStart = isFirstDay ? (original.startTime || '00:00') : '00:00';
+      const dayEnd = isLastDay ? (original.endTime || '23:59') : '23:59';
+
+      const [sh, sm] = dayStart.split(':').map(Number);
+      const [eh, em] = dayEnd.split(':').map(Number);
+      const startMin = sh * 60 + sm;
+      const endMin = eh * 60 + em;
+      const thirdDuration = Math.floor((endMin - startMin) / 3);
+      const a1EndMin = snap15(startMin + thirdDuration);
+      const a2StartMin = snap15(startMin + 2 * thirdDuration);
+
+      // A1: original start → split-day cutoff
+      const a1: CitySegment = {
+        type: 'city',
+        id: uuidv4(),
+        cityName: original.cityName,
+        country: original.country,
+        startDate: original.startDate,
+        startTime: original.startTime || '00:00',
+        endDate: dateStr,
+        endTime: minutesToTime(a1EndMin),
+        notes: original.notes,
+        accommodation: original.accommodation,
+      };
+
+      // B: new city
+      const b: CitySegment = {
+        type: 'city',
+        id: uuidv4(),
+        cityName,
+        country,
+        startDate: dateStr,
+        startTime: startTime,
+        endDate: dateStr,
+        endTime: endTime,
+      };
+
+      // A2: split-day cutoff → original end
+      const a2: CitySegment = {
+        type: 'city',
+        id: uuidv4(),
+        cityName: original.cityName,
+        country: original.country,
+        startDate: dateStr,
+        startTime: minutesToTime(a2StartMin),
+        endDate: original.endDate,
+        endTime: original.endTime || '23:59',
+        notes: original.notes,
+        accommodation: original.accommodation,
+      };
+
+      // Distribute stays between A1 and A2
+      if (original.stays?.length) {
+        const a1Stays: Stay[] = [];
+        const a2Stays: Stay[] = [];
+        const splitStart = `${dateStr}T${startTime}`;
+        const splitEnd = `${dateStr}T${endTime}`;
+
+        for (const stay of original.stays) {
+          const stayStart = `${stay.checkInDate}T${stay.checkInTime}`;
+          const stayEnd = `${stay.checkOutDate}T${stay.checkOutTime}`;
+
+          if (stayEnd <= splitStart) {
+            a1Stays.push(stay);
+          } else if (stayStart >= splitEnd) {
+            a2Stays.push(stay);
+          } else {
+            // Stay spans the split — clone to both halves with trimmed dates
+            if (stayStart < splitStart) {
+              a1Stays.push({ ...stay, id: uuidv4(), checkOutDate: dateStr, checkOutTime: startTime });
+            }
+            if (stayEnd > splitEnd) {
+              a2Stays.push({ ...stay, id: uuidv4(), checkInDate: dateStr, checkInTime: endTime });
+            }
+          }
+        }
+
+        if (a1Stays.length) a1.stays = a1Stays;
+        if (a2Stays.length) a2.stays = a2Stays;
+      }
+
+      return {
+        ...prev,
+        travelers: prev.travelers.map((t) => {
+          if (t.id !== travelerId) return t;
+          return {
+            ...t,
+            segments: t.segments.flatMap(s => s.id === splitSegmentId ? [a1, b, a2] : [s]),
+          };
+        }),
+      };
+    });
+
+    onClose();
+  }
+
   function handleNewCity() {
     if (!search.trim()) return;
     addCity(search.trim(), '');
@@ -150,6 +287,7 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
   const dateLabel = format(date, "dd/MM (EEE)");
 
   const hasOverlap = useMemo(() => {
+    if (splitSegmentId) return false; // Split mode replaces the original — no overlap possible
     const traveler = itinerary.travelers.find((t) => t.id === travelerId);
     if (!traveler) return false;
 
@@ -164,7 +302,7 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
       const otherEnd = `${other.endDate}T${other.endTime || "23:59"}`;
       return startDt < otherEnd && endDt > otherStart;
     });
-  }, [itinerary, travelerId, date, startTime, endTime]);
+  }, [itinerary, travelerId, date, startTime, endTime, splitSegmentId]);
 
   return (
     <div
@@ -175,8 +313,20 @@ export function AddCityPopover({ travelerId, date, position, onClose }: AddCityP
     >
       <div className="px-4 py-3 border-b border-slate-800 bg-slate-900">
         <p className="text-xs font-medium text-slate-500">
-          Add city on <span className="text-slate-600">{dateLabel}</span>
+          {splitSegment ? 'Insert' : 'Add'} city on <span className="text-slate-600">{dateLabel}</span>
         </p>
+
+        {splitSegment && (
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <div
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: getCityColor(splitSegment.cityName) }}
+            />
+            <p className="text-[10px] text-slate-500 font-medium">
+              Splitting <span className="text-slate-400">{splitSegment.cityName}</span>
+            </p>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 mt-3">
            <p className="text-[10px] text-slate-500 font-medium">
