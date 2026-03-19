@@ -24,6 +24,8 @@ export function TransportConnector({ segment, traveler, left, width }: Transport
 
   return (
     <div
+      data-transport-outer
+      data-segment-id={segment.id}
       className="absolute top-0 bottom-0 z-20 pointer-events-none"
       style={{ left: `${displayLeft}px`, width: `${displayWidth}px` }}
     >

@@ -97,6 +97,11 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     type: DragType;
     startX: number;
     deltaX: number;
+    group: {
+      segmentIds: string[];
+      elements: HTMLElement[];
+      originalLefts: number[];
+    } | null;
   } | null>(null);
   const didDragRef = useRef(false);
   const [, forceRender] = useState(0);
@@ -275,12 +280,76 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     }));
   }
 
+  function commitGroupDrag(citySegmentIds: string[], rawDeltaX: number) {
+    const zoom = zoomRef.current;
+    const rawDeltaMinutes = (rawDeltaX * 1440) / zoom;
+    const snappedDelta =
+      Math.round(rawDeltaMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+    if (snappedDelta === 0) return;
+
+    setItinerary((prev) => ({
+      ...prev,
+      travelers: prev.travelers.map((t) => {
+        if (t.id !== traveler.id) return t;
+        const idSet = new Set(citySegmentIds);
+        const newSegments = t.segments.map((seg) => {
+          if (seg.type !== "city" || !idSet.has(seg.id)) return seg;
+          const city = seg as CitySegment;
+          const sTime = city.startTime || "00:00";
+          const eTime = city.endTime || "23:59";
+          const newStart = shiftDateTime(city.startDate, sTime, snappedDelta);
+          const newEnd = shiftDateTime(city.endDate, eTime, snappedDelta);
+          return {
+            ...city,
+            startDate: newStart.date,
+            startTime: newStart.time,
+            endDate: newEnd.date,
+            endTime: newEnd.time,
+          };
+        });
+        return { ...t, segments: newSegments };
+      }),
+    }));
+  }
+
   function handleDragStart(type: DragType, e: React.MouseEvent) {
     if (locked) return;
     e.preventDefault();
     e.stopPropagation();
     didDragRef.current = false;
-    dragRef.current = { type, startX: e.clientX, deltaX: 0 };
+
+    // Build group info for multi-select moves
+    let group: typeof dragRef.current extends { group: infer G } | null ? G : never = null;
+    if (type === "move" && isSelected && selection.length > 1) {
+      const sameTravelerCities = selection.filter(
+        (s) => s.type === "city" && s.travelerId === traveler.id && s.segmentId !== segment.id,
+      );
+      if (sameTravelerCities.length > 0) {
+        const cityIds = sameTravelerCities.map((s) => s.segmentId);
+        // Also collect transport segment IDs for this traveler
+        const transportIds = selection
+          .filter((s) => s.type === "transport" && s.travelerId === traveler.id)
+          .map((s) => s.segmentId);
+
+        const allIds = [...cityIds, ...transportIds];
+        const elements: HTMLElement[] = [];
+        const originalLefts: number[] = [];
+        for (const id of allIds) {
+          const el =
+            document.querySelector<HTMLElement>(`[data-segment-id="${id}"][data-city-block]`) ||
+            document.querySelector<HTMLElement>(`[data-segment-id="${id}"][data-transport-outer]`);
+          if (el) {
+            elements.push(el);
+            originalLefts.push(parseFloat(el.style.left) || 0);
+          }
+        }
+        if (elements.length > 0) {
+          group = { segmentIds: cityIds, elements, originalLefts };
+        }
+      }
+    }
+
+    dragRef.current = { type, startX: e.clientX, deltaX: 0, group };
     forceRender((n) => n + 1);
 
     const onMouseMove = (ev: MouseEvent) => {
@@ -288,12 +357,46 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
       const deltaX = ev.clientX - dragRef.current.startX;
       if (Math.abs(deltaX) > 3) didDragRef.current = true;
       dragRef.current.deltaX = deltaX;
+
+      // Move group siblings via direct DOM manipulation
+      const g = dragRef.current.group;
+      if (g && didDragRef.current) {
+        const pxPerSnap = zoomRef.current / SNAPS_PER_DAY;
+        const snappedDelta = Math.round(deltaX / pxPerSnap) * pxPerSnap;
+        for (let i = 0; i < g.elements.length; i++) {
+          const el = g.elements[i];
+          el.style.left = `${g.originalLefts[i] + snappedDelta}px`;
+          el.style.zIndex = "30";
+          el.style.opacity = "0.9";
+          el.style.boxShadow = "0 4px 12px rgba(0,0,0,0.3)";
+          el.style.transition = "none";
+        }
+      }
+
       forceRender((n) => n + 1);
     };
 
     const onMouseUp = () => {
-      if (dragRef.current && didDragRef.current) {
-        commitDrag(dragRef.current.type, dragRef.current.deltaX);
+      const cur = dragRef.current;
+      if (cur) {
+        // Reset group element styles
+        if (cur.group) {
+          for (const el of cur.group.elements) {
+            el.style.zIndex = "";
+            el.style.opacity = "";
+            el.style.boxShadow = "";
+            el.style.transition = "";
+            el.style.left = "";
+          }
+        }
+
+        if (didDragRef.current) {
+          if (cur.group) {
+            commitGroupDrag([segment.id, ...cur.group.segmentIds], cur.deltaX);
+          } else {
+            commitDrag(cur.type, cur.deltaX);
+          }
+        }
       }
       dragRef.current = null;
       forceRender((n) => n + 1);
