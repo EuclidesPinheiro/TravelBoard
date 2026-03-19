@@ -250,7 +250,15 @@ export function TimelineGrid() {
     let rafId: number | null = null;
 
     function handleWheel(e: WheelEvent) {
-      if (!(e.ctrlKey || e.metaKey)) return;
+      // Plain scroll (no modifier) → horizontal pan
+      if (!(e.ctrlKey || e.metaKey)) {
+        // Only intercept vertical scroll (deltaY) to convert to horizontal
+        if (e.deltaY !== 0 && e.deltaX === 0) {
+          e.preventDefault();
+          container!.scrollLeft -= e.deltaY;
+        }
+        return;
+      }
       e.preventDefault();
 
       const currentZoom = lastRequestedZoomRef.current;
