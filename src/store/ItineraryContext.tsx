@@ -90,13 +90,19 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
 
     const plainCurrent = JSON.parse(JSON.stringify(store.versions[safeIndex]));
     let newItinerary = typeof action === 'function' ? action(plainCurrent) : action;
+    // Ensure the result is fully plain — updater closures may capture Yjs proxies
+    // from component props (e.g. spreading itinerary.attractions), which would
+    // corrupt the store when spliced back in.
+    newItinerary = JSON.parse(JSON.stringify(newItinerary));
     newItinerary = cleanupOrphanedCityData(newItinerary);
     newItinerary = syncTravelSegments(newItinerary);
 
     if (JSON.stringify(plainCurrent) !== JSON.stringify(newItinerary)) {
-      store.versions.splice(safeIndex, 1, newItinerary);
+      doc.transact(() => {
+        store.versions.splice(safeIndex, 1, newItinerary);
+      });
     }
-  }, [safeIndex, store, pushUndo, skipSnapshotRef]);
+  }, [safeIndex, store, doc, pushUndo, skipSnapshotRef]);
 
   const { copy, paste } = useCopyPaste(itinerary, selection, focusedCell, setItinerary);
 

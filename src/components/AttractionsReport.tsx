@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useItinerary } from '../store/ItineraryContext';
 import { Attraction, AttractionCategory } from '../types';
-import { ThumbsUp, ExternalLink, Filter } from 'lucide-react';
+import { ThumbsUp, ExternalLink, Filter, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 const CATEGORY_CONFIG: Record<AttractionCategory, { label: string; color: string }> = {
@@ -24,6 +24,7 @@ export function AttractionsReport() {
   const [groupBy, setGroupBy] = useState<GroupBy>('category');
   const [activeCategories, setActiveCategories] = useState<Set<AttractionCategory>>(new Set(ALL_CATEGORIES));
   const [cityFilter, setCityFilter] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // Flatten all attractions with their city name
   const allAttractions = useMemo(() => {
@@ -104,6 +105,15 @@ export function AttractionsReport() {
       return CATEGORY_CONFIG[key as AttractionCategory]?.color ?? '#94a3b8';
     }
     return '#6366f1';
+  }
+
+  function toggleGroup(key: string) {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
   if (allAttractions.length === 0) {
@@ -212,23 +222,31 @@ export function AttractionsReport() {
         <div className="space-y-4">
           {grouped.map(([groupKey, items]) => {
             const groupColor = getGroupColor(groupKey);
+            const isCollapsed = collapsedGroups.has(groupKey);
 
             return (
               <div key={groupKey}>
                 {/* Group header */}
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: groupColor }} />
-                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                <button
+                  onClick={() => toggleGroup(groupKey)}
+                  className="flex items-center gap-2 mb-2 w-full text-left group cursor-pointer"
+                >
+                  {isCollapsed
+                    ? <ChevronRight size={14} className="text-slate-500 group-hover:text-slate-300 transition-colors shrink-0" />
+                    : <ChevronDown size={14} className="text-slate-500 group-hover:text-slate-300 transition-colors shrink-0" />
+                  }
+                  <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: groupColor }} />
+                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider group-hover:text-slate-400 transition-colors">
                     {getGroupLabel(groupKey)}
                   </span>
                   <span className="text-[10px] text-slate-500 font-medium">
                     {items.length} {items.length === 1 ? 'attraction' : 'attractions'}
                   </span>
                   <div className="flex-1 h-px bg-slate-700" />
-                </div>
+                </button>
 
                 {/* Attraction cards */}
-                <div className="space-y-1.5">
+                {!isCollapsed && <div className="space-y-1.5">
                   {items.map((attraction, idx) => {
                     const catCfg = CATEGORY_CONFIG[attraction.category ?? 'museum'];
                     const addedBy = getTravelerById(attraction.addedBy);
@@ -313,7 +331,7 @@ export function AttractionsReport() {
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </div>
             );
           })}
