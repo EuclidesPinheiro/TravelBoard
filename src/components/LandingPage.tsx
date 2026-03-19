@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { initialItinerary } from "../data/initialData";
 import { Itinerary } from "../types";
-import { Plane, Upload, Plus, X } from "lucide-react";
+import { Upload, Plus, X } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { format, parseISO } from "date-fns";
 import {
@@ -98,11 +98,11 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-slate-950 rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <Plane className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-slate-50">TravelBoard</h1>
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <img src="/TravelBoardIcon.png" alt="TravelBoard Icon" className="w-12 h-12" />
+          <img src="/TravelBoard.png" alt="TravelBoard" className="h-10" />
         </div>
-        <p className="text-slate-500 mb-8">
+        <p className="text-slate-400 mb-8 text-sm">
           Planejamento visual de viagens em grupo
         </p>
 
