@@ -46,6 +46,7 @@ export function TravelerRow({
     dayIndex: number;
     x: number;
     y: number;
+    splitSegmentId?: string;
   } | null>(null);
   const wasDraggingRef = useRef(false);
 
@@ -106,18 +107,39 @@ export function TravelerRow({
     return occupied;
   }, [traveler.segments, itineraryStart, days.length]);
 
+  function findCityAtDay(dayIndex: number): CitySegment | undefined {
+    for (const segment of traveler.segments) {
+      if (segment.type === "city") {
+        const city = segment as CitySegment;
+        const start = differenceInDays(
+          startOfDay(parseISO(city.startDate)),
+          itineraryStart,
+        );
+        const end = differenceInDays(
+          startOfDay(parseISO(city.endDate)),
+          itineraryStart,
+        );
+        if (dayIndex >= start && dayIndex <= end) {
+          return city;
+        }
+      }
+    }
+    return undefined;
+  }
+
   function handleGridCellClick(dayIndex: number) {
     if (locked) return;
     setFocusedCell({ travelerId: traveler.id, dayIndex });
   }
 
-  function handleEmptyCellClick(dayIndex: number, e: React.MouseEvent) {
+  function handleCellClick(dayIndex: number, e: React.MouseEvent, splitSegmentId?: string) {
     if (locked) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setPopover({
       dayIndex,
       x: Math.min(rect.left, window.innerWidth - 300),
       y: Math.min(rect.bottom + 4, window.innerHeight - 350),
+      splitSegmentId,
     });
   }
 
@@ -258,17 +280,17 @@ export function TravelerRow({
               data-grid-cell
               className={cn(
                 "absolute top-0 bottom-0 border-r border-slate-600 transition-colors cursor-pointer",
-                isEmpty && "hover:bg-indigo-900/40",
-                isEmpty && isFocused && "bg-indigo-500/30 ring-2 ring-inset ring-indigo-500/50 z-10"
+                isEmpty ? "hover:bg-indigo-900/40" : "hover:bg-slate-800/40",
+                isEmpty && isFocused && "bg-indigo-500/30 ring-2 ring-inset ring-indigo-500/50"
               )}
               style={{ left: i * zoomLevel, width: zoomLevel }}
               onMouseEnter={() => onDayHover(i)}
               onMouseLeave={() => onDayHover(null)}
               onClick={(e) => {
-                if (isEmpty && !isMarqueeActive) {
-                  handleGridCellClick(i);
-                  handleEmptyCellClick(i, e);
-                }
+                if (isMarqueeActive) return;
+                handleGridCellClick(i);
+                const coveringCity = !isEmpty ? findCityAtDay(i) : undefined;
+                handleCellClick(i, e, coveringCity?.id);
               }}
             />
           );
@@ -357,6 +379,7 @@ export function TravelerRow({
             date={days[popover.dayIndex]}
             position={{ x: popover.x, y: popover.y }}
             onClose={() => setPopover(null)}
+            splitSegmentId={popover.splitSegmentId}
           />,
           document.body,
         )}
