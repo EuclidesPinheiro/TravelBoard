@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { useItinerary } from '../../store/ItineraryContext';
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
+import { useItinerary, ZOOM_MIN, ZOOM_MAX, ZOOM_WHEEL_STEP } from '../../store/ItineraryContext';
 import { getTimelineDays, formatDate } from '../../utils/dateUtils';
 import { isWeekend, isToday } from 'date-fns';
 import { TravelerRow } from './TravelerRow';
@@ -12,7 +12,7 @@ import { SelectionItem } from '../../types';
 const ROW_HEIGHT = 72;
 
 export function TimelineGrid() {
-  const { itinerary, zoomLevel, setItinerary, setSelection, setIsMarqueeActive, isMarqueeActive } = useItinerary();
+  const { itinerary, zoomLevel, setZoomLevel, setItinerary, setSelection, setIsMarqueeActive, isMarqueeActive } = useItinerary();
   const days = getTimelineDays(itinerary.startDate, itinerary.endDate);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
@@ -207,14 +207,83 @@ export function TimelineGrid() {
     return 0;
   }
 
+  // --- Scroll to today (once on mount) ---
+  const hasScrolledToTodayRef = useRef(false);
+
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && !hasScrolledToTodayRef.current) {
       const todayIndex = days.findIndex(d => isToday(d));
       if (todayIndex > -1) {
         scrollRef.current.scrollLeft = Math.max(0, (todayIndex * zoomLevel) - 200);
       }
+      hasScrolledToTodayRef.current = true;
     }
   }, [days, zoomLevel]);
+
+  // --- Ctrl/Cmd + Scroll wheel zoom (cursor-anchored) ---
+  const SIDEBAR_WIDTH = 256;
+
+  const lastRequestedZoomRef = useRef(zoomLevel);
+  useEffect(() => { lastRequestedZoomRef.current = zoomLevel; }, [zoomLevel]);
+
+  // Store the anchor point (stable day position + cursor offset) instead of a
+  // pre-computed scrollLeft, so we can recompute correctly for whatever zoom
+  // level React actually renders (which may be an intermediate value during
+  // fast scrolling).
+  const zoomAnchorRef = useRef<{ dayPosition: number; cursorX: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const anchor = zoomAnchorRef.current;
+    if (anchor && scrollRef.current) {
+      scrollRef.current.scrollLeft = Math.max(0, anchor.dayPosition * zoomLevel + SIDEBAR_WIDTH - anchor.cursorX);
+      // Only clear anchor once the DOM matches the final requested zoom
+      if (zoomLevel === lastRequestedZoomRef.current) {
+        zoomAnchorRef.current = null;
+      }
+    }
+  }, [zoomLevel]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    let rafId: number | null = null;
+
+    function handleWheel(e: WheelEvent) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+
+      const currentZoom = lastRequestedZoomRef.current;
+      const cursorX = e.clientX - container!.getBoundingClientRect().left;
+
+      // If there's a pending anchor, derive the current scroll position from it
+      const anchor = zoomAnchorRef.current;
+      const currentScrollLeft = anchor
+        ? Math.max(0, anchor.dayPosition * currentZoom + SIDEBAR_WIDTH - anchor.cursorX)
+        : container!.scrollLeft;
+
+      const dayPosition = (currentScrollLeft + cursorX - SIDEBAR_WIDTH) / currentZoom;
+
+      const delta = e.deltaY > 0 ? -ZOOM_WHEEL_STEP : ZOOM_WHEEL_STEP;
+      const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, currentZoom + delta));
+
+      lastRequestedZoomRef.current = newZoom;
+      zoomAnchorRef.current = { dayPosition, cursorX };
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          setZoomLevel(lastRequestedZoomRef.current);
+          rafId = null;
+        });
+      }
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [setZoomLevel]);
 
   return (
     <div 

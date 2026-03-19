@@ -10,6 +10,12 @@ import base64js from 'base64-js';
 const MAX_UNDO = 50;
 const SYNC_DEBOUNCE_MS = 500;
 
+export const ZOOM_MIN = 40;
+export const ZOOM_MAX = 500;
+export const ZOOM_DEFAULT = 80;
+export const ZOOM_BUTTON_STEP = 20;
+export const ZOOM_WHEEL_STEP = 8;
+
 interface ItineraryContextType {
   itinerary: Itinerary;
   setItinerary: React.Dispatch<React.SetStateAction<Itinerary>>;
@@ -298,7 +304,7 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
   } | null>(null);
 
   const [highlightedTravelerId, setHighlightedTravelerId] = useState<string | null>(null);
-  const [zoomLevel, setZoomLevel] = useState<number>(80);
+  const [zoomLevel, setZoomLevel] = useState<number>(ZOOM_DEFAULT);
   const [isMarqueeActive, setIsMarqueeActive] = useState(false);
 
   // --- Refs & Internal Sync State ---
