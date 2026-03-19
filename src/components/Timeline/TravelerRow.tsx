@@ -6,7 +6,7 @@ import { differenceInDays, parseISO, startOfDay } from "date-fns";
 import { CityBlock } from "./CityBlock";
 import { TransportConnector } from "./TransportConnector";
 import { AddCityPopover } from "./AddCityPopover";
-import { Info, GripVertical } from "lucide-react";
+import { Info, GripVertical, Lock, LockOpen } from "lucide-react";
 import { cn } from "../../utils/cn";
 
 interface TravelerRowProps {
@@ -39,6 +39,7 @@ export function TravelerRow({
     highlightedTravelerId,
     setHighlightedTravelerId,
     isMarqueeActive,
+    setItinerary,
   } = useItinerary();
   const itineraryStart = startOfDay(parseISO(itinerary.startDate));
   const [popover, setPopover] = useState<{
@@ -47,6 +48,18 @@ export function TravelerRow({
     y: number;
   } | null>(null);
   const wasDraggingRef = useRef(false);
+
+  const locked = traveler.locked === true;
+
+  function toggleLock(e: React.MouseEvent) {
+    e.stopPropagation();
+    setItinerary(prev => ({
+      ...prev,
+      travelers: prev.travelers.map(t =>
+        t.id === traveler.id ? { ...t, locked: !t.locked } : t
+      ),
+    }));
+  }
 
   const isHighlighted = highlightedTravelerId === traveler.id;
   const isDimmed =
@@ -93,10 +106,12 @@ export function TravelerRow({
   }, [traveler.segments, itineraryStart, days.length]);
 
   function handleGridCellClick(dayIndex: number) {
+    if (locked) return;
     setFocusedCell({ travelerId: traveler.id, dayIndex });
   }
 
   function handleEmptyCellClick(dayIndex: number, e: React.MouseEvent) {
+    if (locked) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setPopover({
       dayIndex,
@@ -154,19 +169,25 @@ export function TravelerRow({
         onClick={handleRowClick}
       >
         {/* Drag handle */}
+        {!locked && (
+          <div
+            className="shrink-0 flex items-center justify-center w-5 h-8 text-slate-600 hover:text-slate-500 cursor-grab active:cursor-grabbing rounded transition-colors opacity-0 group-hover:opacity-100"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onReorderStart?.(traveler.id, e.clientY);
+            }}
+            title="Arrastar para reordenar"
+          >
+            <GripVertical size={14} />
+          </div>
+        )}
+        {locked && <div className="w-5 shrink-0" />}
         <div
-          className="shrink-0 flex items-center justify-center w-5 h-8 text-slate-600 hover:text-slate-500 cursor-grab active:cursor-grabbing rounded transition-colors opacity-0 group-hover:opacity-100"
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onReorderStart?.(traveler.id, e.clientY);
-          }}
-          title="Arrastar para reordenar"
-        >
-          <GripVertical size={14} />
-        </div>
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 ring-white shrink-0"
+          className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 shrink-0",
+            locked ? "ring-amber-400" : "ring-white"
+          )}
           style={{ backgroundColor: traveler.color }}
         >
           {traveler.name.substring(0, 2).toUpperCase()}
@@ -204,6 +225,19 @@ export function TravelerRow({
           title="View details"
         >
           <Info size={12} />
+        </button>
+        {/* Lock toggle button */}
+        <button
+          className={cn(
+            "absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center transition-colors",
+            locked
+              ? "bg-amber-900/60 text-amber-400 opacity-100"
+              : "bg-slate-800 hover:bg-slate-700 text-slate-500 hover:text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100"
+          )}
+          onClick={toggleLock}
+          title={locked ? "Unlock row" : "Lock row"}
+        >
+          {locked ? <Lock size={12} /> : <LockOpen size={12} />}
         </button>
       </div>
 

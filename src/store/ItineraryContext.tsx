@@ -521,6 +521,7 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
       clipboard.travelers.forEach(cbTraveler => {
         const travelerIdx = targetTravelerIdx + cbTraveler.relativeRowIndex;
         if (travelerIdx < 0 || travelerIdx >= newItinerary.travelers.length) return;
+        if (newItinerary.travelers[travelerIdx].locked) return;
         const traveler = { ...newItinerary.travelers[travelerIdx], segments: [...newItinerary.travelers[travelerIdx].segments] };
         const newSegments: Segment[] = cbTraveler.segments.map(seg => {
           const s = JSON.parse(JSON.stringify(seg)) as Segment;

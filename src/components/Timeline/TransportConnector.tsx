@@ -47,6 +47,7 @@ export function TransportConnector({ segment, traveler, left, width }: Transport
         )}
         style={{ backgroundColor: color }}
         onClick={(e) => {
+          if (traveler.locked) return;
           // Set focused cell
           const dayIndex = differenceInDays(
             startOfDay(parseISO(segment.departureDate)),
