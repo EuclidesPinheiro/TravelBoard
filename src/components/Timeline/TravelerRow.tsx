@@ -259,7 +259,7 @@ export function TravelerRow({
               className={cn(
                 "absolute top-0 bottom-0 border-r border-slate-600 transition-colors cursor-pointer",
                 isEmpty && "hover:bg-indigo-900/40",
-                isEmpty && isFocused && "bg-indigo-500/30 ring-2 ring-inset ring-indigo-500/50 z-10"
+                isEmpty && isFocused && "bg-indigo-500/30 ring-2 ring-inset ring-indigo-500/50"
               )}
               style={{ left: i * zoomLevel, width: zoomLevel }}
               onMouseEnter={() => onDayHover(i)}
