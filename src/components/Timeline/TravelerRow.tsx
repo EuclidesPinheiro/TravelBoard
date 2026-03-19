@@ -53,6 +53,7 @@ export function TravelerRow({
 
   function toggleLock(e: React.MouseEvent) {
     e.stopPropagation();
+    setHighlightedTravelerId(traveler.id);
     setItinerary(prev => ({
       ...prev,
       travelers: prev.travelers.map(t =>
@@ -206,6 +207,7 @@ export function TravelerRow({
           className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-slate-800 hover:bg-indigo-800/60 text-slate-500 hover:text-indigo-400 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
           onClick={(e) => {
             e.stopPropagation();
+            setHighlightedTravelerId(traveler.id);
             const isMulti = e.ctrlKey || e.metaKey;
             const item: SelectionItem = { type: "traveler", travelerId: traveler.id };
             const isSelected = selection.some(s => s.type === 'traveler' && s.travelerId === traveler.id);
