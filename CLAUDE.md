@@ -57,17 +57,20 @@ contexto/
 ## Como Rodar
 
 ```bash
-npm install
-npm run dev   # Abre em http://localhost:3000
+bun install
+bun run dev   # Abre em http://localhost:3000
 ```
+* Se bun não estiver disponível, use `npm`
 
 ## Comandos Disponiveis
 
-- `npm run dev` — servidor de desenvolvimento (porta 3000)
-- `npm run build` — build de producao
-- `npm run preview` — preview do build
-- `npm run lint` — type-check com TypeScript
-- `npm run clean` — remove pasta dist
+- `bun run dev` — servidor de desenvolvimento (porta 3000)
+- `bun run build` — build de producao
+- `bun run preview` — preview do build
+- `bun run lint` — type-check com TypeScript
+- `bun run clean` — remove pasta dist
+* Se bun não estiver disponível, use `npm`
+
 
 ## Conceitos Chave
 
