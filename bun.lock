@@ -7,7 +7,6 @@
       "dependencies": {
         "@supabase/supabase-js": "^2.99.2",
         "@syncedstore/core": "^0.6.0",
-        "@syncedstore/react": "^0.6.0",
         "@tailwindcss/vite": "^4.1.14",
         "@vitejs/plugin-react": "^5.0.4",
         "base64-js": "^1.5.1",
@@ -138,8 +137,6 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@reactivedata/react": ["@reactivedata/react@0.2.2", "", { "dependencies": { "@reactivedata/reactive": "^0.2.2" }, "peerDependencies": { "react": "^16.8.0 || ^17 || ^18" } }, "sha512-fJ8qoHRbicQnVcnwfHa9FO73mbHFfl590xpuGM4Mo1P2ClaDATfl9oUrrySE+tbA//M9cn8De8HTwjoNqt91sw=="],
-
     "@reactivedata/reactive": ["@reactivedata/reactive@0.2.2", "", {}, "sha512-KnINM/Sng25QAv6sHkJO9q/XyslLegCF5jTsTSVu+AouY3uZDVf4Am99xNCqsfqFZFvnTBBDvCsHNdvTVGvPEA=="],
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.0-rc.3", "", {}, "sha512-eybk3TjzzzV97Dlj5c+XrBFW57eTNhzod66y9HrBlzJ6NsCrWCp/2kaPS3K9wJmurBC0Tdw4yPjXKZqlznim3Q=="],
@@ -207,8 +204,6 @@
     "@supabase/supabase-js": ["@supabase/supabase-js@2.99.2", "", { "dependencies": { "@supabase/auth-js": "2.99.2", "@supabase/functions-js": "2.99.2", "@supabase/postgrest-js": "2.99.2", "@supabase/realtime-js": "2.99.2", "@supabase/storage-js": "2.99.2" } }, "sha512-179rn5wq0wBAqqGwAwR7TUGg2NOaP+fkd5FCVbYJXby85fsRNPFoNJN8YRBepqX2tN7JJcnTjqaAMXuNjiyisA=="],
 
     "@syncedstore/core": ["@syncedstore/core@0.6.0", "", { "dependencies": { "@reactivedata/reactive": "^0.2.0", "@syncedstore/yjs-reactive-bindings": "^0.6.0" }, "peerDependencies": { "yjs": "^13.5.13" } }, "sha512-6TtjEoYJsceYi8u1oRecXwbbLmjHaU0S7HvVfOaEdDfphZLGm/faVuA2fpazqc28F0yIFGvYzvPEBUJn9vqRNw=="],
-
-    "@syncedstore/react": ["@syncedstore/react@0.6.0", "", { "dependencies": { "@reactivedata/react": "^0.2.1" }, "peerDependencies": { "@syncedstore/core": "*" } }, "sha512-pc8ycnBuH2wp7Td5nGzP9Dn2mEW9Yg1qF0yGdjJ5UdgLEwfRkq+8/hdQl+alcoSribv9St/Bi5hJckX8GVsAbQ=="],
 
     "@syncedstore/yjs-reactive-bindings": ["@syncedstore/yjs-reactive-bindings@0.6.0", "", { "peerDependencies": { "yjs": "^13.5.13" } }, "sha512-VF78h0J4iOt79YU9d6j5E6bFKu7WXYuiI2ue9ZnA+T4SNVn8viRvg0AHm3NqHzudZZUgYT3dpnbv1/ZmU7yPZQ=="],
 
