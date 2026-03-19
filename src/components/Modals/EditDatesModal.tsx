@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useItinerary } from '../../store/ItineraryContext';
+import { parseISO } from 'date-fns';
 
 interface EditDatesModalProps {
   isOpen: boolean;
@@ -27,7 +28,7 @@ export function EditDatesModal({ isOpen, onClose }: EditDatesModalProps) {
     e.preventDefault();
     if (!startDate || !endDate) return;
 
-    if (new Date(endDate) < new Date(startDate)) {
+    if (parseISO(endDate) < parseISO(startDate)) {
       setError("A data final não pode ser anterior à data inicial.");
       return;
     }

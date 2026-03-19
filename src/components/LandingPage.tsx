@@ -4,6 +4,7 @@ import { initialItinerary } from "../data/initialData";
 import { Itinerary } from "../types";
 import { Plane, Upload, Plus, X } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
+import { format, parseISO } from "date-fns";
 import {
   EdgeFunctionError,
   invokePublicFunction,
@@ -56,8 +57,8 @@ export function LandingPage() {
     const nextWeek = new Date(today);
     nextWeek.setDate(today.getDate() + 7);
 
-    setStartDate(today.toISOString().split("T")[0]);
-    setEndDate(nextWeek.toISOString().split("T")[0]);
+    setStartDate(format(today, "yyyy-MM-dd"));
+    setEndDate(format(nextWeek, "yyyy-MM-dd"));
     setShowDateModal(true);
   }
 
@@ -65,7 +66,7 @@ export function LandingPage() {
     e.preventDefault();
     if (!startDate || !endDate) return;
 
-    if (new Date(endDate) < new Date(startDate)) {
+    if (parseISO(endDate) < parseISO(startDate)) {
       setError("A data final não pode ser anterior à data inicial.");
       return;
     }

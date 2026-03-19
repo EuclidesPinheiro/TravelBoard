@@ -9,6 +9,12 @@ import { Plus, CalendarCog } from 'lucide-react';
 import { EditDatesModal } from '../Modals/EditDatesModal';
 import { SelectionItem } from '../../types';
 
+function selectionItemsMatch(a: SelectionItem, b: SelectionItem): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === 'traveler') return b.type === 'traveler' && a.travelerId === b.travelerId;
+  return b.type !== 'traveler' && a.travelerId === b.travelerId && a.segmentId === b.segmentId;
+}
+
 const ROW_HEIGHT = 72;
 
 export function TimelineGrid() {
@@ -94,7 +100,7 @@ export function TimelineGrid() {
           if (intersects) {
             const travelerId = el.getAttribute('data-traveler-id');
             const segmentId = el.getAttribute('data-segment-id');
-            const type = el.getAttribute('data-selection-type') as any;
+            const type = el.getAttribute('data-selection-type') as SelectionItem['type'];
 
             if (type === 'traveler' && travelerId) {
               selectedItems.push({ type: 'traveler', travelerId });
@@ -110,11 +116,7 @@ export function TimelineGrid() {
           setSelection(prev => {
             const next = [...prev];
             selectedItems.forEach(item => {
-              const exists = next.some(s => 
-                s.type === item.type && 
-                (s as any).travelerId === (item as any).travelerId && 
-                ((s as any).segmentId === (item as any).segmentId)
-              );
+              const exists = next.some(s => selectionItemsMatch(s, item));
               if (!exists) next.push(item);
             });
             return next;
