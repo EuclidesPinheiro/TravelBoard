@@ -3,8 +3,7 @@ import { Itinerary, SelectionType, CitySegment, Segment } from '../types';
 import { createBoardSupabaseClient } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { differenceInDays, parseISO, startOfDay, addDays, format } from 'date-fns';
-import { syncedStore, getYjsDoc } from '@syncedstore/core';
-import { useSyncedStore } from '@syncedstore/react';
+import { syncedStore, getYjsDoc, observeDeep } from '@syncedstore/core';
 import * as Y from 'yjs';
 import base64js from 'base64-js';
 
@@ -273,8 +272,15 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
     return { store: s, doc: getYjsDoc(s) };
   }, [boardId]);
 
-  const state = useSyncedStore(store);
-  const versions = state.versions as Itinerary[]; // Reactive proxy
+  // Local replacement for useSyncedStore to avoid React 19 / bundling issues
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    return observeDeep(store, () => {
+      setTick((t) => t + 1);
+    });
+  }, [store]);
+
+  const versions = store.versions as Itinerary[]; // Reactive proxy
 
   // --- Basic State ---
   const [activeVersionIndex, setActiveVersionIndex] = useState<number>(0);
