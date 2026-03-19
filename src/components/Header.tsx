@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useItinerary } from '../store/ItineraryContext';
+import { useItinerary, ZOOM_MIN, ZOOM_MAX, ZOOM_BUTTON_STEP } from '../store/ItineraryContext';
 import { Download, Plus, Save, Trash2, Upload, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../utils/cn';
 import html2canvas from 'html2canvas';
@@ -8,8 +8,8 @@ export function Header() {
   const { itinerary, setItinerary, versions, activeVersionIndex, switchVersion, cloneVersion, deleteVersion, zoomLevel, setZoomLevel, setSelection } = useItinerary();
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 20, 160));
-  const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 20, 40));
+  const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + ZOOM_BUTTON_STEP, ZOOM_MAX));
+  const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - ZOOM_BUTTON_STEP, ZOOM_MIN));
 
   const exportPNG = async () => {
     const element = document.getElementById('timeline-grid');
