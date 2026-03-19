@@ -58,7 +58,7 @@ export function Header() {
   return (
       <header className="h-16 bg-slate-950 border-b border-slate-700 flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
         <div className="flex items-center gap-4">
-          <img src="/favicon.png" alt="TravelBoard" className="w-10 h-10 rounded-xl shadow-sm" />
+          <img src="/favicon.png" alt="TravelBoard" className="w-10 h-10 shadow-sm" />
           <div>
             <h1 className="text-lg font-semibold text-slate-50 leading-tight">{itinerary.name}</h1>
             <p className="text-xs text-slate-500 font-medium">
