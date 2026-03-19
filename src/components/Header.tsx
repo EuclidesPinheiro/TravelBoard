@@ -3,6 +3,7 @@ import { useItinerary, ZOOM_MIN, ZOOM_MAX, ZOOM_BUTTON_STEP } from '../store/Iti
 import { Download, Plus, Save, Trash2, Upload, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '../utils/cn';
 import html2canvas from 'html2canvas';
+import { parseISO, format } from 'date-fns';
 
 export function Header() {
   const { itinerary, setItinerary, versions, activeVersionIndex, switchVersion, cloneVersion, deleteVersion, zoomLevel, setZoomLevel, setSelection } = useItinerary();
@@ -61,7 +62,7 @@ export function Header() {
           <div>
             <h1 className="text-lg font-semibold text-slate-50 leading-tight">{itinerary.name}</h1>
             <p className="text-xs text-slate-500 font-medium">
-              {new Date(itinerary.startDate).toLocaleDateString()} - {new Date(itinerary.endDate).toLocaleDateString()}
+              {format(parseISO(itinerary.startDate), 'P')} - {format(parseISO(itinerary.endDate), 'P')}
             </p>
           </div>
 

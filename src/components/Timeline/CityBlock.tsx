@@ -69,7 +69,7 @@ function msToDateTime(ms: number): { date: string; time: string } {
   const d = new Date(ms);
   return {
     date: format(d, "yyyy-MM-dd"),
-    time: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+    time: format(d, "HH:mm"),
   };
 }
 
