@@ -269,6 +269,12 @@ export function TravelerRow({
       <div
         className="flex relative isolate overflow-x-clip"
         style={{ width: days.length * zoomLevel }}
+        onClick={() => {
+          if (isMarqueeActive) return;
+          if (highlightedTravelerId !== null && highlightedTravelerId !== traveler.id) {
+            setHighlightedTravelerId(null);
+          }
+        }}
       >
         {/* Background Grid Lines — used for focus and empty cell clicks */}
         {days.map((day, i) => {
