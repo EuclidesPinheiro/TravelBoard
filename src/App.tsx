@@ -25,7 +25,7 @@ interface BoardAccessResponse {
 }
 
 function useDeleteSelection() {
-  const { selection, setSelection, setItinerary } = useItinerary();
+  const { selection, setSelection, setItinerary, itinerary } = useItinerary();
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -35,13 +35,18 @@ function useDeleteSelection() {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (!selection || selection.length === 0) return;
 
-      const travelersToDelete = selection.filter(s => s.type === 'traveler').map(s => s.travelerId);
-      const segmentsToDelete = selection.filter(s => s.type === 'city' || s.type === 'transport');
+      const lockedIds = new Set(itinerary.travelers.filter(t => t.locked).map(t => t.id));
+
+      const travelersToDelete = selection
+        .filter(s => s.type === 'traveler' && !lockedIds.has(s.travelerId))
+        .map(s => s.travelerId);
+      const segmentsToDelete = selection
+        .filter(s => (s.type === 'city' || s.type === 'transport') && !lockedIds.has(s.travelerId));
       if (travelersToDelete.length === 0 && segmentsToDelete.length === 0) return;
 
       setItinerary(prev => {
         let newTravelers = prev.travelers.filter(t => !travelersToDelete.includes(t.id));
-        
+
         segmentsToDelete.forEach(sel => {
           if (sel.type === 'city' || sel.type === 'transport') {
             newTravelers = newTravelers.map(t => {
@@ -50,7 +55,7 @@ function useDeleteSelection() {
             });
           }
         });
-        
+
         return { ...prev, travelers: newTravelers };
       });
       setSelection([]);
@@ -58,7 +63,7 @@ function useDeleteSelection() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selection, setSelection, setItinerary]);
+  }, [selection, setSelection, setItinerary, itinerary]);
 }
 
 function useUndoRedo() {

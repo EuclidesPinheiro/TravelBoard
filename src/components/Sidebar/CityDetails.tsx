@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
-import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil, UserCheck } from 'lucide-react';
+import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil, UserCheck, Lock } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../../utils/cn';
@@ -190,8 +190,16 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     }
   }
 
+  const locked = traveler.locked === true;
+
   return (
     <div className="space-y-6">
+      {locked && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-900/30 border border-amber-800/50 rounded-lg">
+          <Lock size={14} className="text-amber-400 shrink-0" />
+          <span className="text-xs font-medium text-amber-400">This traveler is locked</span>
+        </div>
+      )}
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0 mr-2">
           <div className="flex items-center gap-2 text-indigo-400 mb-1">
@@ -200,45 +208,56 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
               City Stay
             </span>
           </div>
-          <input
-            type="text"
-            value={segment.cityName}
-            onChange={(e) => handleCityNameChange(e.target.value)}
-            className="w-full text-xl font-bold text-slate-50 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate"
-          />
-          <input
-            type="text"
-            value={segment.country || ""}
-            onChange={(e) =>
-              updateSegment(traveler.id, segment.id, (s) => ({
-                ...s,
-                country: e.target.value,
-              }))
-            }
-            placeholder="Add country..."
-            className="w-full text-sm text-slate-500 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate"
-          />
+          {locked ? (
+            <>
+              <div className="text-xl font-bold text-slate-50 truncate">{segment.cityName}</div>
+              {segment.country && <div className="text-sm text-slate-500 truncate">{segment.country}</div>}
+            </>
+          ) : (
+            <>
+              <input
+                type="text"
+                value={segment.cityName}
+                onChange={(e) => handleCityNameChange(e.target.value)}
+                className="w-full text-xl font-bold text-slate-50 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate"
+              />
+              <input
+                type="text"
+                value={segment.country || ""}
+                onChange={(e) =>
+                  updateSegment(traveler.id, segment.id, (s) => ({
+                    ...s,
+                    country: e.target.value,
+                  }))
+                }
+                placeholder="Add country..."
+                className="w-full text-sm text-slate-500 bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate"
+              />
+            </>
+          )}
         </div>
-        <button
-          onClick={() => {
-            if (confirm(`Remove ${segment.cityName} from this traveler?`)) {
-              setItinerary((prev) => ({
-                ...prev,
-                travelers: prev.travelers.map((t) => {
-                  if (t.id !== traveler.id) return t;
-                  return {
-                    ...t,
-                    segments: t.segments.filter((s) => s.id !== segmentId),
-                  };
-                }),
-              }));
-            }
-          }}
-          className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors shrink-0"
-          title="Delete city"
-        >
-          <Trash2 size={20} />
-        </button>
+        {!locked && (
+          <button
+            onClick={() => {
+              if (confirm(`Remove ${segment.cityName} from this traveler?`)) {
+                setItinerary((prev) => ({
+                  ...prev,
+                  travelers: prev.travelers.map((t) => {
+                    if (t.id !== traveler.id) return t;
+                    return {
+                      ...t,
+                      segments: t.segments.filter((s) => s.id !== segmentId),
+                    };
+                  }),
+                }));
+              }
+            }}
+            className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors shrink-0"
+            title="Delete city"
+          >
+            <Trash2 size={20} />
+          </button>
+        )}
       </div>
 
       <div className="bg-slate-900 rounded-xl p-4 space-y-3 border border-slate-800">
@@ -253,13 +272,15 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
                 value={arrivalDate}
                 max={departureDate}
                 onChange={(e) => handleArrivalDateChange(e.target.value)}
-                className="text-sm font-medium text-slate-50 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[130px]"
+                disabled={locked}
+                className={cn("text-sm font-medium text-slate-50 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[130px]", locked && "opacity-60 cursor-not-allowed")}
               />
               <input
                 type="time"
                 value={arrivalTime}
                 onChange={(e) => handleArrivalTimeChange(e.target.value)}
-                className="text-sm font-medium text-indigo-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[90px]"
+                disabled={locked}
+                className={cn("text-sm font-medium text-indigo-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[90px]", locked && "opacity-60 cursor-not-allowed")}
               />
             </div>
             {prevTransport && (
@@ -279,13 +300,15 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
                 value={departureDate}
                 min={arrivalDate}
                 onChange={(e) => handleDepartureDateChange(e.target.value)}
-                className="text-sm font-medium text-slate-50 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[130px]"
+                disabled={locked}
+                className={cn("text-sm font-medium text-slate-50 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[130px]", locked && "opacity-60 cursor-not-allowed")}
               />
               <input
                 type="time"
                 value={departureTime}
                 onChange={(e) => handleDepartureTimeChange(e.target.value)}
-                className="text-sm font-medium text-indigo-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[90px]"
+                disabled={locked}
+                className={cn("text-sm font-medium text-indigo-400 bg-slate-950 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-400 w-[90px]", locked && "opacity-60 cursor-not-allowed")}
               />
             </div>
             {nextTransport && (
@@ -320,6 +343,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         onAdd={addStay}
         onRemove={removeStay}
         onUpdate={updateStay}
+        locked={locked}
       />
 
       {/* Attractions */}
@@ -415,6 +439,7 @@ interface StaysSectionProps {
   onAdd: (stay: Stay) => void;
   onRemove: (stayId: string) => void;
   onUpdate: (stayId: string, updater: (s: Stay) => Stay) => void;
+  locked?: boolean;
 }
 
 function getDefaultTimes(arrDate: string, arrTime: string, depDate: string, depTime: string) {
@@ -428,7 +453,7 @@ function getDefaultTimes(arrDate: string, arrTime: string, depDate: string, depT
   return { checkIn, checkOut };
 }
 
-function StaysSection({ traveler, stays, arrivalDate, arrivalTime, departureDate, departureTime, cityMinDt, cityMaxDt, otherTravelers, sharedStaysFromOthers, onAdd, onRemove, onUpdate }: StaysSectionProps) {
+function StaysSection({ traveler, stays, arrivalDate, arrivalTime, departureDate, departureTime, cityMinDt, cityMaxDt, otherTravelers, sharedStaysFromOthers, onAdd, onRemove, onUpdate, locked }: StaysSectionProps) {
   const defaults = getDefaultTimes(arrivalDate, arrivalTime, departureDate, departureTime);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
@@ -509,11 +534,12 @@ function StaysSection({ traveler, stays, arrivalDate, arrivalTime, departureDate
           cityMaxDt={cityMaxDt}
           onRemove={() => onRemove(stay.id)}
           onUpdate={(updater) => onUpdate(stay.id, updater)}
+          locked={locked}
         />
       ))}
 
       {/* Shared stays from other travelers that haven't been adopted yet */}
-      {(() => {
+      {!locked && (() => {
         const existingNames = new Set(stays.map(s => s.name.toLowerCase()));
         const available = sharedStaysFromOthers.filter(s => !existingNames.has(s.stay.name.toLowerCase()));
         if (available.length === 0) return null;
@@ -569,7 +595,7 @@ function StaysSection({ traveler, stays, arrivalDate, arrivalTime, departureDate
       })()}
 
       {/* Add form */}
-      {isAdding ? (
+      {locked ? null : isAdding ? (
         <div className="bg-slate-950 border border-slate-700 rounded-lg p-3 space-y-3 shadow-sm">
           <input
             type="text"
@@ -752,9 +778,10 @@ interface StayCardProps {
   cityMaxDt: string;
   onRemove: () => void;
   onUpdate: (updater: (s: Stay) => Stay) => void;
+  locked?: boolean;
 }
 
-function StayCard({ traveler, stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpdate }: StayCardProps) {
+function StayCard({ traveler, stay, otherTravelers, cityMinDt, cityMaxDt, onRemove, onUpdate, locked }: StayCardProps) {
   const sharedTravelers = otherTravelers.filter(t => stay.sharedWith.includes(t.id));
   const splitCount = 1 + stay.sharedWith.length;
   const perPerson = stay.cost ? stay.cost / splitCount : 0;
@@ -999,22 +1026,24 @@ function StayCard({ traveler, stay, otherTravelers, cityMinDt, cityMaxDt, onRemo
             </a>
           )}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={startEdit}
-            className="p-1 text-slate-600 hover:text-indigo-400 transition-colors"
-            title="Edit"
-          >
-            <Pencil size={12} />
-          </button>
-          <button
-            onClick={onRemove}
-            className="p-1 text-slate-600 hover:text-red-400 transition-colors"
-            title="Remove"
-          >
-            <Trash2 size={12} />
-          </button>
-        </div>
+        {!locked && (
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={startEdit}
+              className="p-1 text-slate-600 hover:text-indigo-400 transition-colors"
+              title="Edit"
+            >
+              <Pencil size={12} />
+            </button>
+            <button
+              onClick={onRemove}
+              className="p-1 text-slate-600 hover:text-red-400 transition-colors"
+              title="Remove"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3 text-xs text-slate-500">
@@ -1042,7 +1071,8 @@ function StayCard({ traveler, stay, otherTravelers, cityMinDt, cityMaxDt, onRemo
             placeholder="Cost..."
             min="0"
             step="0.01"
-            className="w-full text-xs bg-slate-900 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder-slate-400"
+            disabled={locked}
+            className={cn("w-full text-xs bg-slate-900 border border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder-slate-400", locked && "opacity-60 cursor-not-allowed")}
           />
         </div>
         {stay.cost && splitCount > 1 && (

@@ -84,6 +84,7 @@ interface CityBlockProps {
 type DragType = "move" | "resize-left" | "resize-right";
 
 export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
+  const locked = traveler.locked === true;
   const { itinerary, setSelection, selection, setItinerary, zoomLevel, setFocusedCell } = useItinerary();
   const isSelected = selection.some(
     (s) => s.type === "city" && s.segmentId === segment.id,
@@ -275,6 +276,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   }
 
   function handleDragStart(type: DragType, e: React.MouseEvent) {
+    if (locked) return;
     e.preventDefault();
     e.stopPropagation();
     didDragRef.current = false;
@@ -304,6 +306,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   }
 
   function handleClick(e: React.MouseEvent) {
+    if (locked) return;
     if (didDragRef.current) {
       didDragRef.current = false;
       return;
@@ -421,7 +424,8 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         data-traveler-id={traveler.id}
         data-segment-id={segment.id}
         className={cn(
-          "absolute top-1/2 -translate-y-1/2 h-10 rounded-md shadow-sm border flex items-center justify-center cursor-pointer transition-shadow hover:shadow-md hover:z-10 overflow-hidden group pointer-events-auto",
+          "absolute top-1/2 -translate-y-1/2 h-10 rounded-md shadow-sm border flex items-center justify-center transition-shadow hover:shadow-md hover:z-10 overflow-hidden group pointer-events-auto",
+          locked ? "cursor-default" : "cursor-pointer",
           isSelected ? "ring-2 ring-indigo-500 z-10" : "border-slate-700/60",
           isDragging && "z-30 shadow-lg opacity-90",
         )}
@@ -446,18 +450,22 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         }
       >
         {/* Left resize handle */}
-        <div
-          data-handle="left"
-          className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 hover:bg-black/10 transition-colors"
-          onMouseDown={(e) => handleDragStart("resize-left", e)}
-        />
+        {!locked && (
+          <div
+            data-handle="left"
+            className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 hover:bg-black/10 transition-colors"
+            onMouseDown={(e) => handleDragStart("resize-left", e)}
+          />
+        )}
 
         {/* Right resize handle */}
-        <div
-          data-handle="right"
-          className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 hover:bg-black/10 transition-colors"
-          onMouseDown={(e) => handleDragStart("resize-right", e)}
-        />
+        {!locked && (
+          <div
+            data-handle="right"
+            className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 hover:bg-black/10 transition-colors"
+            onMouseDown={(e) => handleDragStart("resize-right", e)}
+          />
+        )}
 
         {hasStays && (
           <Home

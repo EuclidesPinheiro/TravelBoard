@@ -51,6 +51,7 @@ export interface Traveler {
   name: string;
   color: string;
   segments: Segment[];
+  locked?: boolean;
 }
 
 export type AttractionCategory = 'museum' | 'science' | 'nature' | 'yolo';

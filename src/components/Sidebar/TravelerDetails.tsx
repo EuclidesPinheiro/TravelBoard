@@ -1,6 +1,6 @@
 import { Traveler, CitySegment, TransportSegment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
-import { Navigation, Calendar, Trash2, Pencil, Check, X, Copy } from 'lucide-react';
+import { Navigation, Calendar, Trash2, Pencil, Check, X, Copy, Lock } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -46,9 +46,17 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
     setIsEditing(false);
   }
 
+  const locked = traveler.locked === true;
+
   return (
     <div className="space-y-6">
-      {isEditing ? (
+      {locked && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-900/30 border border-amber-800/50 rounded-lg">
+          <Lock size={14} className="text-amber-400 shrink-0" />
+          <span className="text-xs font-medium text-amber-400">This traveler is locked</span>
+        </div>
+      )}
+      {isEditing && !locked ? (
         <div className="space-y-4 bg-slate-900 border border-slate-700 rounded-lg p-4">
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Nome</label>
@@ -109,13 +117,15 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
             <h3 className="text-lg font-bold text-slate-50">{traveler.name}</h3>
             <p className="text-sm text-slate-500">{cities.length} cities • {totalDays} days</p>
           </div>
-          <button
-            onClick={startEditing}
-            className="p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-900/40 rounded-md transition-colors"
-            title="Editar viajante"
-          >
-            <Pencil size={15} />
-          </button>
+          {!locked && (
+            <button
+              onClick={startEditing}
+              className="p-1.5 text-slate-500 hover:text-indigo-400 hover:bg-indigo-900/40 rounded-md transition-colors"
+              title="Editar viajante"
+            >
+              <Pencil size={15} />
+            </button>
+          )}
         </div>
       )}
 
@@ -152,58 +162,62 @@ export function TravelerDetails({ traveler }: { traveler: Traveler }) {
         </div>
       </div>
 
-      <button
-        onClick={() => {
-          const cloned: Traveler = {
-            id: uuidv4(),
-            name: `${traveler.name} (copy)`,
-            color: COLORS[(COLORS.indexOf(traveler.color) + 1) % COLORS.length] || COLORS[0],
-            segments: traveler.segments.map(seg => ({ ...seg, id: uuidv4() })),
-          };
-          setItinerary(prev => ({
-            ...prev,
-            travelers: [...prev.travelers, cloned],
-          }));
-          setSelection([{ type: 'traveler', travelerId: cloned.id }]);
-        }}
-        className="w-full py-2 px-4 bg-slate-950 border border-indigo-800 text-indigo-400 hover:bg-indigo-900/40 hover:border-indigo-700 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-      >
-        <Copy size={14} />
-        Duplicar Viajante
-      </button>
+      {!locked && (
+        <>
+          <button
+            onClick={() => {
+              const cloned: Traveler = {
+                id: uuidv4(),
+                name: `${traveler.name} (copy)`,
+                color: COLORS[(COLORS.indexOf(traveler.color) + 1) % COLORS.length] || COLORS[0],
+                segments: traveler.segments.map(seg => ({ ...seg, id: uuidv4() })),
+              };
+              setItinerary(prev => ({
+                ...prev,
+                travelers: [...prev.travelers, cloned],
+              }));
+              setSelection([{ type: 'traveler', travelerId: cloned.id }]);
+            }}
+            className="w-full py-2 px-4 bg-slate-950 border border-indigo-800 text-indigo-400 hover:bg-indigo-900/40 hover:border-indigo-700 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+          >
+            <Copy size={14} />
+            Duplicar Viajante
+          </button>
 
-      {!confirmDelete ? (
-        <button
-          onClick={() => setConfirmDelete(true)}
-          className="w-full py-2 px-4 bg-slate-950 border border-red-800 text-red-400 hover:bg-red-900/40 hover:border-red-700 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-        >
-          <Trash2 size={14} />
-          Delete Traveler
-        </button>
-      ) : (
-        <div className="bg-red-900/40 border border-red-800 rounded-lg p-3 space-y-2">
-          <p className="text-xs text-red-300 font-medium">Remove {traveler.name} and all their cities/transports?</p>
-          <div className="flex gap-2">
+          {!confirmDelete ? (
             <button
-              onClick={() => {
-                setItinerary(prev => ({
-                  ...prev,
-                  travelers: prev.travelers.filter(t => t.id !== traveler.id),
-                }));
-                setSelection([]);
-              }}
-              className="flex-1 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md text-xs transition-colors"
+              onClick={() => setConfirmDelete(true)}
+              className="w-full py-2 px-4 bg-slate-950 border border-red-800 text-red-400 hover:bg-red-900/40 hover:border-red-700 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
             >
-              Confirm
+              <Trash2 size={14} />
+              Delete Traveler
             </button>
-            <button
-              onClick={() => setConfirmDelete(false)}
-              className="flex-1 py-1.5 bg-slate-950 border border-slate-700 text-slate-500 hover:bg-slate-900 font-medium rounded-md text-xs transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+          ) : (
+            <div className="bg-red-900/40 border border-red-800 rounded-lg p-3 space-y-2">
+              <p className="text-xs text-red-300 font-medium">Remove {traveler.name} and all their cities/transports?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setItinerary(prev => ({
+                      ...prev,
+                      travelers: prev.travelers.filter(t => t.id !== traveler.id),
+                    }));
+                    setSelection([]);
+                  }}
+                  className="flex-1 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md text-xs transition-colors"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="flex-1 py-1.5 bg-slate-950 border border-slate-700 text-slate-500 hover:bg-slate-900 font-medium rounded-md text-xs transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
