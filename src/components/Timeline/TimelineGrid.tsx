@@ -8,6 +8,7 @@ import { cn } from '../../utils/cn';
 import { Plus, CalendarCog } from 'lucide-react';
 import { EditDatesModal } from '../Modals/EditDatesModal';
 import { SelectionItem } from '../../types';
+import { RemoteCursors } from './RemoteCursors';
 
 function selectionItemsMatch(a: SelectionItem, b: SelectionItem): boolean {
   if (a.type !== b.type) return false;
@@ -16,9 +17,19 @@ function selectionItemsMatch(a: SelectionItem, b: SelectionItem): boolean {
 }
 
 const ROW_HEIGHT = 72;
+const HEADER_HEIGHT = 56;
+
+function sameCursorPosition(
+  a: { x: number; y: number } | null,
+  b: { x: number; y: number } | null,
+) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.x === b.x && a.y === b.y;
+}
 
 export function TimelineGrid() {
-  const { itinerary, zoomLevel, setZoomLevel, setItinerary, setSelection, setIsMarqueeActive, isMarqueeActive } = useItinerary();
+  const { itinerary, zoomLevel, setZoomLevel, setItinerary, setSelection, setIsMarqueeActive, isMarqueeActive, updateCursor } = useItinerary();
   const days = getTimelineDays(itinerary.startDate, itinerary.endDate);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
@@ -224,6 +235,8 @@ export function TimelineGrid() {
 
   // --- Ctrl/Cmd + Scroll wheel zoom (cursor-anchored) ---
   const SIDEBAR_WIDTH = 256;
+  const lastPointerClientRef = useRef<{ x: number; y: number } | null>(null);
+  const lastPublishedCursorRef = useRef<{ x: number; y: number } | null>(null);
 
   const lastRequestedZoomRef = useRef(zoomLevel);
   useEffect(() => { lastRequestedZoomRef.current = zoomLevel; }, [zoomLevel]);
@@ -295,100 +308,193 @@ export function TimelineGrid() {
     };
   }, [setZoomLevel]);
 
+  const publishCursorFromClient = useCallback((point: { x: number; y: number } | null) => {
+    const el = scrollRef.current;
+    if (!el || !point) {
+      if (lastPublishedCursorRef.current !== null) {
+        lastPublishedCursorRef.current = null;
+        updateCursor(null);
+      }
+      return;
+    }
+
+    const rect = el.getBoundingClientRect();
+    const inside =
+      point.x >= rect.left &&
+      point.x <= rect.right &&
+      point.y >= rect.top &&
+      point.y <= rect.bottom;
+
+    if (!inside) {
+      if (lastPublishedCursorRef.current !== null) {
+        lastPublishedCursorRef.current = null;
+        updateCursor(null);
+      }
+      return;
+    }
+
+    const nextCursor = {
+      x: point.x - rect.left + el.scrollLeft,
+      y: point.y - rect.top + el.scrollTop,
+    };
+
+    if (sameCursorPosition(lastPublishedCursorRef.current, nextCursor)) {
+      return;
+    }
+
+    lastPublishedCursorRef.current = nextCursor;
+    updateCursor(nextCursor);
+  }, [updateCursor]);
+
+  useEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      lastPointerClientRef.current = { x: e.clientX, y: e.clientY };
+      publishCursorFromClient(lastPointerClientRef.current);
+    };
+
+    const clearCursor = () => {
+      lastPointerClientRef.current = null;
+      publishCursorFromClient(null);
+    };
+
+    const handleScroll = () => {
+      publishCursorFromClient(lastPointerClientRef.current);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') {
+        clearCursor();
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('blur', clearCursor);
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('blur', clearCursor);
+      scrollEl.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearCursor();
+    };
+  }, [publishCursorFromClient]);
+
   return (
-    <div 
-      className="flex-1 overflow-auto bg-slate-950 relative select-none" 
-      id="timeline-grid" 
-      ref={scrollRef}
-      onMouseDown={handleMouseDown}
-    >
-      <div className="inline-block min-w-full">
-        {/* Header Row (Dates) */}
-        <div className="sticky top-0 z-30 flex bg-slate-950 border-b border-slate-700 shadow-sm">
-          <div className="w-64 shrink-0 border-r border-slate-700 bg-slate-900 sticky left-0 z-40 flex items-center justify-between px-4 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Travelers</span>
-            <button 
-              onClick={() => setIsEditDatesOpen(true)}
-              className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-              title="Edit date range"
-            >
-              <CalendarCog size={16} />
-            </button>
+    <div className="flex-1 bg-slate-950 relative select-none" id="timeline-grid">
+      <div
+        className="absolute inset-0 overflow-auto"
+        ref={scrollRef}
+        onMouseDown={handleMouseDown}
+      >
+        <div className="relative inline-block min-w-full">
+          {/* Header Row (Dates) */}
+          <div className="sticky top-0 z-30 flex bg-slate-950 border-b border-slate-700 shadow-sm" style={{ height: HEADER_HEIGHT }}>
+            <div className="w-64 shrink-0 border-r border-slate-700 bg-slate-900 sticky left-0 z-40 flex items-center justify-between px-4 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Travelers</span>
+              <button
+                onClick={() => setIsEditDatesOpen(true)}
+                className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                title="Edit date range"
+              >
+                <CalendarCog size={16} />
+              </button>
+            </div>
+            <div className="flex">
+              {days.map((day, i) => {
+                const weekend = isWeekend(day);
+                const today = isToday(day);
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "shrink-0 border-r border-slate-600 flex flex-col items-center justify-center py-2 transition-colors cursor-pointer",
+                      weekend && "bg-slate-900",
+                      today && "bg-blue-50/50",
+                      hoveredDay === i && "bg-slate-800"
+                    )}
+                    style={{ width: zoomLevel }}
+                    onMouseEnter={() => setHoveredDay(i)}
+                    onMouseLeave={() => setHoveredDay(null)}
+                  >
+                    <span className={cn("text-[10px] font-medium uppercase tracking-wider", today ? "text-blue-600" : "text-slate-500")}>
+                      {formatDate(day, 'EEE')}
+                    </span>
+                    <span className={cn("text-sm font-semibold", today ? "text-blue-700" : (weekend ? "text-slate-600" : "text-slate-50"))}>
+                      {formatDate(day, 'dd/MM')}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div className="flex">
-            {days.map((day, i) => {
-              const weekend = isWeekend(day);
-              const today = isToday(day);
+
+          {/* Traveler Rows */}
+          <div className="flex flex-col pb-10 relative" ref={rowsContainerRef}>
+            {/* Column hover overlay */}
+            {hoveredDay !== null && (
+              <div
+                className="absolute top-0 bottom-0 bg-slate-900/[0.04] pointer-events-none z-10 transition-opacity"
+                style={{ left: 256 + hoveredDay * zoomLevel, width: zoomLevel }}
+              />
+            )}
+            {itinerary.travelers.map((traveler, i) => {
+              const translateY = getRowTranslateY(i);
+              const isBeingDragged = dragState?.fromIndex === i;
               return (
-                <div
-                  key={i}
-                  className={cn(
-                    "shrink-0 border-r border-slate-600 flex flex-col items-center justify-center py-2 transition-colors cursor-pointer",
-                    weekend && "bg-slate-900",
-                    today && "bg-blue-50/50",
-                    hoveredDay === i && "bg-slate-800"
-                  )}
-                  style={{ width: zoomLevel }}
-                  onMouseEnter={() => setHoveredDay(i)}
-                  onMouseLeave={() => setHoveredDay(null)}
-                >
-                  <span className={cn("text-[10px] font-medium uppercase tracking-wider", today ? "text-blue-600" : "text-slate-500")}>
-                    {formatDate(day, 'EEE')}
-                  </span>
-                  <span className={cn("text-sm font-semibold", today ? "text-blue-700" : (weekend ? "text-slate-600" : "text-slate-50"))}>
-                    {formatDate(day, 'dd/MM')}
-                  </span>
-                </div>
+                <TravelerRow
+                  key={traveler.id}
+                  traveler={traveler}
+                  days={days}
+                  onDayHover={setHoveredDay}
+                  hoveredDay={hoveredDay}
+                  onReorderStart={handleDragStart}
+                  isDragging={isBeingDragged}
+                  dragTranslateY={translateY}
+                />
               );
             })}
-          </div>
-        </div>
 
-        {/* Traveler Rows */}
-        <div className="flex flex-col pb-10 relative" ref={rowsContainerRef}>
-          {/* Column hover overlay */}
-          {hoveredDay !== null && (
+            {/* Add Traveler Row */}
             <div
-              className="absolute top-0 bottom-0 bg-slate-900/[0.04] pointer-events-none z-10 transition-opacity"
-              style={{ left: 256 + hoveredDay * zoomLevel, width: zoomLevel }}
+              className="flex h-[52px] border border-slate-700 hover:bg-indigo-900/40/40 cursor-pointer transition-colors group"
+              onClick={() => {
+                if (!isMarqueeActive) setIsAddTravelerOpen(true);
+              }}
+            >
+              <div className="w-64 shrink-0 sticky left-0 z-20 bg-slate-950 group-hover:bg-indigo-900/40/40 border-r border-slate-700 transition-colors flex items-center justify-center shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+                <div className="flex items-center gap-2 text-indigo-300 group-hover:text-indigo-400 transition-colors">
+                  <div className="w-7 h-7 rounded-full bg-indigo-900/40 group-hover:bg-indigo-800/60 flex items-center justify-center transition-colors">
+                    <Plus size={14} strokeWidth={2.5} />
+                  </div>
+                  <span className="text-xs font-medium">Add Traveler</span>
+                </div>
+              </div>
+              <div className="flex-1" style={{ minWidth: days.length * zoomLevel }} />
+            </div>
+
+          </div>
+
+          {/* Marquee Visual */}
+          {marquee && (
+            <div
+              className="absolute border-2 border-indigo-500 bg-indigo-500/20 pointer-events-none z-[100]"
+              style={{
+                left: Math.min(marquee.startX, marquee.endX),
+                top: Math.min(marquee.startY, marquee.endY),
+                width: Math.abs(marquee.endX - marquee.startX),
+                height: Math.abs(marquee.endY - marquee.startY),
+              }}
             />
           )}
-          {itinerary.travelers.map((traveler, i) => {
-            const translateY = getRowTranslateY(i);
-            const isBeingDragged = dragState?.fromIndex === i;
-            return (
-              <TravelerRow
-                key={traveler.id}
-                traveler={traveler}
-                days={days}
-                onDayHover={setHoveredDay}
-                hoveredDay={hoveredDay}
-                onReorderStart={handleDragStart}
-                isDragging={isBeingDragged}
-                dragTranslateY={translateY}
-              />
-            );
-          })}
-
-          {/* Add Traveler Row */}
-          <div
-            className="flex h-[52px] border border-slate-700 hover:bg-indigo-900/40/40 cursor-pointer transition-colors group"
-            onClick={() => {
-              if (!isMarqueeActive) setIsAddTravelerOpen(true);
-            }}
-          >
-            <div className="w-64 shrink-0 sticky left-0 z-20 bg-slate-950 group-hover:bg-indigo-900/40/40 border-r border-slate-700 transition-colors flex items-center justify-center shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center gap-2 text-indigo-300 group-hover:text-indigo-400 transition-colors">
-                <div className="w-7 h-7 rounded-full bg-indigo-900/40 group-hover:bg-indigo-800/60 flex items-center justify-center transition-colors">
-                  <Plus size={14} strokeWidth={2.5} />
-                </div>
-                <span className="text-xs font-medium">Add Traveler</span>
-              </div>
-            </div>
-            <div className="flex-1" style={{ minWidth: days.length * zoomLevel }} />
-          </div>
         </div>
       </div>
+
+      <RemoteCursors scrollRef={scrollRef} />
 
       <AddTravelerModal
         isOpen={isAddTravelerOpen}
@@ -399,19 +505,6 @@ export function TimelineGrid() {
         isOpen={isEditDatesOpen}
         onClose={() => setIsEditDatesOpen(false)}
       />
-
-      {/* Marquee Visual */}
-      {marquee && (
-        <div 
-          className="absolute border-2 border-indigo-500 bg-indigo-500/20 pointer-events-none z-[100]"
-          style={{
-            left: Math.min(marquee.startX, marquee.endX),
-            top: Math.min(marquee.startY, marquee.endY),
-            width: Math.abs(marquee.endX - marquee.startX),
-            height: Math.abs(marquee.endY - marquee.startY),
-          }}
-        />
-      )}
     </div>
   );
 }

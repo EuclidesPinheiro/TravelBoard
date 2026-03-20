@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem } from '../../types';
+import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem, Itinerary, Segment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil, UserCheck, Lock } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
@@ -59,21 +59,104 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     }));
   }
 
+  function renameRecordKey<T>(
+    record: Record<string, T[]> | undefined,
+    oldKey: string,
+    newKey: string,
+  ): Record<string, T[]> | undefined {
+    if (!record || oldKey === newKey || !(oldKey in record)) return record;
+
+    const next = { ...record };
+    const movedItems = next[oldKey];
+    delete next[oldKey];
+    next[newKey] = next[newKey] ? [...next[newKey], ...movedItems] : movedItems;
+    return next;
+  }
+
+  function updateCityAndLinkedSegments(
+    segmentUpdater: (current: CitySegment) => CitySegment,
+    linkedUpdater?: (context: {
+      segment: CitySegment;
+      updatedSegment: CitySegment;
+      prevTransport: TransportSegment | null;
+      nextTransport: TransportSegment | null;
+    }) => {
+      prevTransport?: TransportSegment | null;
+      nextTransport?: TransportSegment | null;
+    },
+    itineraryUpdater?: (
+      prev: Itinerary,
+      currentSegment: CitySegment,
+      updatedSegment: CitySegment,
+    ) => Partial<Itinerary>,
+  ) {
+    setItinerary((prev) => {
+      const travelerIdx = prev.travelers.findIndex((t) => t.id === traveler.id);
+      if (travelerIdx === -1) return prev;
+
+      const currentTraveler = prev.travelers[travelerIdx];
+      const segIdx = currentTraveler.segments.findIndex((s) => s.id === segmentId);
+      if (segIdx === -1) return prev;
+
+      const currentSegment = currentTraveler.segments[segIdx] as CitySegment;
+      const nextSegments = [...currentTraveler.segments] as Segment[];
+      const prevTransportSegment =
+        segIdx > 0 && nextSegments[segIdx - 1].type === 'transport'
+          ? (nextSegments[segIdx - 1] as TransportSegment)
+          : null;
+      const nextTransportSegment =
+        segIdx < nextSegments.length - 1 && nextSegments[segIdx + 1].type === 'transport'
+          ? (nextSegments[segIdx + 1] as TransportSegment)
+          : null;
+
+      const updatedSegment = segmentUpdater(currentSegment);
+      nextSegments[segIdx] = updatedSegment;
+
+      const linkedUpdates = linkedUpdater?.({
+        segment: currentSegment,
+        updatedSegment,
+        prevTransport: prevTransportSegment,
+        nextTransport: nextTransportSegment,
+      });
+
+      if (prevTransportSegment && linkedUpdates?.prevTransport) {
+        nextSegments[segIdx - 1] = linkedUpdates.prevTransport;
+      }
+
+      if (nextTransportSegment && linkedUpdates?.nextTransport) {
+        nextSegments[segIdx + 1] = linkedUpdates.nextTransport;
+      }
+
+      const nextTravelers = [...prev.travelers];
+      nextTravelers[travelerIdx] = {
+        ...currentTraveler,
+        segments: nextSegments,
+      };
+
+      const nextItinerary = {
+        ...prev,
+        travelers: nextTravelers,
+      };
+
+      return itineraryUpdater
+        ? { ...nextItinerary, ...itineraryUpdater(prev, currentSegment, updatedSegment) }
+        : nextItinerary;
+    });
+  }
+
   function handleArrivalDateChange(newDate: string) {
     if (!newDate) return;
     const newArrival = toDateTime(newDate, arrivalTime);
     const depDt = toDateTime(departureDate, departureTime, "23:59");
     if (newArrival > depDt) return;
-    updateSegment(traveler.id, segment.id, (s) => ({
-      ...s,
-      startDate: newDate,
-    }));
-    if (prevTransport) {
-      updateSegment(traveler.id, prevTransport.id, (s) => ({
-        ...s,
-        arrivalDate: newDate,
-      }));
-    }
+    updateCityAndLinkedSegments(
+      (s) => ({ ...s, startDate: newDate }),
+      ({ prevTransport: linkedPrevTransport }) => ({
+        prevTransport: linkedPrevTransport
+          ? { ...linkedPrevTransport, arrivalDate: newDate }
+          : null,
+      }),
+    );
   }
 
   function handleArrivalTimeChange(newTime: string) {
@@ -81,16 +164,14 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     const newArrival = toDateTime(arrivalDate, newTime);
     const depDt = toDateTime(departureDate, departureTime, "23:59");
     if (newArrival > depDt) return;
-    updateSegment(traveler.id, segment.id, (s) => ({
-      ...s,
-      startTime: newTime,
-    }));
-    if (prevTransport) {
-      updateSegment(traveler.id, prevTransport.id, (s) => ({
-        ...s,
-        arrivalTime: newTime,
-      }));
-    }
+    updateCityAndLinkedSegments(
+      (s) => ({ ...s, startTime: newTime }),
+      ({ prevTransport: linkedPrevTransport }) => ({
+        prevTransport: linkedPrevTransport
+          ? { ...linkedPrevTransport, arrivalTime: newTime }
+          : null,
+      }),
+    );
   }
 
   function handleDepartureDateChange(newDate: string) {
@@ -98,13 +179,14 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     const arrDt = toDateTime(arrivalDate, arrivalTime);
     const newDeparture = toDateTime(newDate, departureTime, "23:59");
     if (newDeparture < arrDt) return;
-    updateSegment(traveler.id, segment.id, (s) => ({ ...s, endDate: newDate }));
-    if (nextTransport) {
-      updateSegment(traveler.id, nextTransport.id, (s) => ({
-        ...s,
-        departureDate: newDate,
-      }));
-    }
+    updateCityAndLinkedSegments(
+      (s) => ({ ...s, endDate: newDate }),
+      ({ nextTransport: linkedNextTransport }) => ({
+        nextTransport: linkedNextTransport
+          ? { ...linkedNextTransport, departureDate: newDate }
+          : null,
+      }),
+    );
   }
 
   function handleDepartureTimeChange(newTime: string) {
@@ -112,13 +194,14 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     const arrDt = toDateTime(arrivalDate, arrivalTime);
     const newDeparture = toDateTime(departureDate, newTime);
     if (newDeparture < arrDt) return;
-    updateSegment(traveler.id, segment.id, (s) => ({ ...s, endTime: newTime }));
-    if (nextTransport) {
-      updateSegment(traveler.id, nextTransport.id, (s) => ({
-        ...s,
-        departureTime: newTime,
-      }));
-    }
+    updateCityAndLinkedSegments(
+      (s) => ({ ...s, endTime: newTime }),
+      ({ nextTransport: linkedNextTransport }) => ({
+        nextTransport: linkedNextTransport
+          ? { ...linkedNextTransport, departureTime: newTime }
+          : null,
+      }),
+    );
   }
 
   // Find co-presence
@@ -172,22 +255,24 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
   }
 
   function handleCityNameChange(newName: string) {
-    updateSegment(traveler.id, segment.id, (s) => ({
-      ...s,
-      cityName: newName,
-    }));
-    if (prevTransport) {
-      updateSegment(traveler.id, prevTransport.id, (s) => ({
+    updateCityAndLinkedSegments(
+      (s) => ({
         ...s,
-        to: newName,
-      }));
-    }
-    if (nextTransport) {
-      updateSegment(traveler.id, nextTransport.id, (s) => ({
-        ...s,
-        from: newName,
-      }));
-    }
+        cityName: newName,
+      }),
+      ({ prevTransport: linkedPrevTransport, nextTransport: linkedNextTransport }) => ({
+        prevTransport: linkedPrevTransport
+          ? { ...linkedPrevTransport, to: newName }
+          : null,
+        nextTransport: linkedNextTransport
+          ? { ...linkedNextTransport, from: newName }
+          : null,
+      }),
+      (prev, currentSegment, updatedSegment) => ({
+        attractions: renameRecordKey(prev.attractions, currentSegment.cityName, updatedSegment.cityName),
+        checklists: renameRecordKey(prev.checklists, currentSegment.cityName, updatedSegment.cityName),
+      }),
+    );
   }
 
   const locked = traveler.locked === true;
@@ -352,6 +437,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         travelerId={traveler.id}
         allTravelers={itinerary.travelers}
         attractions={itinerary.attractions?.[segment.cityName] ?? []}
+        locked={locked}
         onUpdate={(newAttractions) => {
           setItinerary(prev => ({
             ...prev,
@@ -369,6 +455,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         travelerId={traveler.id}
         allTravelers={itinerary.travelers}
         items={itinerary.checklists?.[segment.cityName] ?? []}
+        locked={locked}
         onUpdate={(newItems) => {
           setItinerary(prev => ({
             ...prev,
@@ -1154,6 +1241,7 @@ interface AttractionsSectionProps {
   allTravelers: Traveler[];
   attractions: Attraction[];
   onUpdate: (newAttractions: Attraction[]) => void;
+  locked?: boolean;
 }
 
 const CATEGORY_CONFIG: Record<AttractionCategory, { label: string; color: string; bg: string; border: string }> = {
@@ -1163,7 +1251,7 @@ const CATEGORY_CONFIG: Record<AttractionCategory, { label: string; color: string
   yolo:    { label: 'YOLO',                 color: '#F97316', bg: 'bg-orange-50',  border: 'border-orange-300' },
 };
 
-function AttractionsSection({ cityName, travelerId, allTravelers, attractions, onUpdate }: AttractionsSectionProps) {
+function AttractionsSection({ cityName, travelerId, allTravelers, attractions, onUpdate, locked }: AttractionsSectionProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newLink, setNewLink] = useState('');
@@ -1283,19 +1371,21 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
 
                   <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={() => toggleVote(attraction.id)}
+                      onClick={() => !locked && toggleVote(attraction.id)}
+                      disabled={locked}
                       className={cn(
                         "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors",
                         hasVoted
                           ? "bg-indigo-800/60 text-indigo-300 hover:bg-indigo-200"
-                          : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+                          : "bg-slate-800 text-slate-500 hover:bg-slate-700",
+                        locked && "opacity-60 cursor-not-allowed"
                       )}
                       title={hasVoted ? "Remove vote" : "Vote"}
                     >
                       <ThumbsUp size={12} className={hasVoted ? "fill-indigo-600" : ""} />
                       {attraction.votes.length}
                     </button>
-                    {isOwner && (
+                    {isOwner && !locked && (
                       <button
                         onClick={() => removeAttraction(attraction.id)}
                         className="p-1 text-slate-600 hover:text-red-400 transition-colors"
@@ -1339,7 +1429,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
         </div>
       )}
 
-      {isAdding ? (
+      {locked ? null : isAdding ? (
         <div className="bg-slate-950 border border-slate-700 rounded-lg p-3 space-y-3 shadow-sm">
           <input
             type="text"
@@ -1460,9 +1550,10 @@ interface ChecklistSectionProps {
   allTravelers: Traveler[];
   items: ChecklistItem[];
   onUpdate: (newItems: ChecklistItem[]) => void;
+  locked?: boolean;
 }
 
-function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate }: ChecklistSectionProps) {
+function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate, locked }: ChecklistSectionProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newText, setNewText] = useState('');
 
@@ -1543,8 +1634,12 @@ function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate 
                 )}
               >
                 <button
-                  onClick={() => toggleComplete(item.id)}
-                  className="mt-0.5 shrink-0 text-slate-500 hover:text-teal-400 transition-colors"
+                  onClick={() => !locked && toggleComplete(item.id)}
+                  disabled={locked}
+                  className={cn(
+                    "mt-0.5 shrink-0 text-slate-500 hover:text-teal-400 transition-colors",
+                    locked && "opacity-60 cursor-not-allowed"
+                  )}
                 >
                   {isDone
                     ? <CheckSquare size={16} className="text-teal-400" />
@@ -1582,7 +1677,7 @@ function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate 
                   </div>
                 </div>
 
-                {isOwner && (
+                {isOwner && !locked && (
                   <button
                     onClick={() => removeItem(item.id)}
                     className="p-0.5 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
@@ -1598,7 +1693,7 @@ function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate 
       )}
 
       {/* Add form */}
-      {isAdding ? (
+      {locked ? null : isAdding ? (
         <div className="flex gap-2">
           <input
             type="text"

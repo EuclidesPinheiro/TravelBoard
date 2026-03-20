@@ -152,11 +152,15 @@ export function TravelerRow({
   }
 
   const isSelected = selection.some(s => s.type === 'traveler' && s.travelerId === traveler.id);
+  const selectionRowShadow = isSelected
+    ? `inset 4px 0 0 ${traveler.color}, inset 0 0 0 1px ${traveler.color}22, 2px 0 4px rgba(0,0,0,0.05)`
+    : undefined;
 
   return (
     <div
       className={cn(
         "flex border-b relative h-[72px] group",
+        isSelected ? "border-slate-700 bg-slate-950/95" :
         isHighlighted ? "border-slate-600 bg-slate-950" : "border-slate-800",
         isDimmed ? "opacity-40" : "hover:bg-slate-900/50",
         isDragging
@@ -181,13 +185,14 @@ export function TravelerRow({
         data-traveler-id={traveler.id}
         className={cn(
           "w-64 shrink-0 border-r border-slate-700 sticky left-0 z-20 flex items-center px-2 cursor-pointer transition-colors shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
-          isSelected ? "bg-indigo-950/50 ring-2 ring-inset ring-indigo-500/50" :
+          isSelected ? "bg-slate-900/95" :
           isHighlighted
             ? "bg-slate-950"
             : isDimmed
               ? "bg-slate-950"
               : "bg-slate-950 group-hover:bg-slate-900",
         )}
+        style={{ boxShadow: selectionRowShadow }}
         onClick={handleRowClick}
       >
         {/* Drag handle */}
@@ -208,6 +213,7 @@ export function TravelerRow({
         <div
           className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 shrink-0",
+            isSelected ? "ring-[3px] ring-white/90" :
             locked ? "ring-amber-400" : "ring-white"
           )}
           style={{ backgroundColor: traveler.color }}
