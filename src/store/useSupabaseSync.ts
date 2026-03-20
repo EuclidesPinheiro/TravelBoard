@@ -60,6 +60,8 @@ export function useSupabaseSync(
   const needsSnapshotBootstrapRef = useRef(false);
   const resyncInFlightRef = useRef<Promise<void> | null>(null);
   const providerOriginRef = useRef({ source: 'supabase-yjs-provider' });
+  const pendingBroadcastRef = useRef<Uint8Array | null>(null);
+  const broadcastTimeoutRef = useRef<number | null>(null);
 
   const syncToSupabase = useCallback(async () => {
     if (syncInFlightRef.current) return;
@@ -169,16 +171,29 @@ export function useSupabaseSync(
       return;
     }
 
-    const payload: YjsUpdatePayload = {
-      sessionId,
-      update: encodeBinary(update),
-    };
+    pendingBroadcastRef.current = pendingBroadcastRef.current
+      ? Y.mergeUpdates([pendingBroadcastRef.current, update])
+      : update;
 
-    channel.send({
-      type: 'broadcast',
-      event: YJS_UPDATE_EVENT,
-      payload,
-    });
+    if (broadcastTimeoutRef.current === null) {
+      broadcastTimeoutRef.current = window.setTimeout(() => {
+        if (!pendingBroadcastRef.current) return;
+        const toSend = pendingBroadcastRef.current;
+        pendingBroadcastRef.current = null;
+        broadcastTimeoutRef.current = null;
+
+        const payload: YjsUpdatePayload = {
+          sessionId,
+          update: encodeBinary(toSend),
+        };
+
+        channel.send({
+          type: 'broadcast',
+          event: YJS_UPDATE_EVENT,
+          payload,
+        });
+      }, 100);
+    }
   }, [sessionId]);
 
   const flushPendingUpdates = useCallback(() => {
@@ -372,6 +387,7 @@ export function useSupabaseSync(
   useEffect(() => {
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+      if (broadcastTimeoutRef.current) clearTimeout(broadcastTimeoutRef.current);
     };
   }, []);
 
