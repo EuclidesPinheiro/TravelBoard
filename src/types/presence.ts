@@ -1,0 +1,25 @@
+export interface CursorPosition {
+  x: number; // grid-content space (px from left edge of scrollable content)
+  y: number; // grid-content space (px from top edge of scrollable content)
+}
+
+export interface PresencePayload {
+  sessionId: string;
+  displayName: string;
+  colorIndex: number;
+  cursor: CursorPosition | null; // null = cursor outside grid
+}
+
+export interface RemoteUser {
+  sessionId: string;
+  displayName: string;
+  colorIndex: number;
+  color: string; // resolved hex from PRESENCE_PALETTE
+}
+
+export interface LocalUser {
+  sessionId: string;
+  displayName: string;
+  color: string;
+  colorIndex: number;
+}

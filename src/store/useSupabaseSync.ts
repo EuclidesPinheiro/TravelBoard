@@ -2,7 +2,6 @@ import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { Itinerary } from '../types';
 import { createBoardSupabaseClient } from '../lib/supabase';
 import { DbRow, itineraryToRow, rowToItinerary, SYNC_DEBOUNCE_MS, SyncedStore } from './helpers';
-import { v4 as uuidv4 } from 'uuid';
 import * as Y from 'yjs';
 import base64js from 'base64-js';
 
@@ -11,6 +10,7 @@ export function useSupabaseSync(
   accessToken: string,
   store: SyncedStore,
   doc: Y.Doc,
+  sessionId: string,
 ) {
   const supabase = useMemo(
     () => createBoardSupabaseClient(accessToken),
@@ -19,7 +19,6 @@ export function useSupabaseSync(
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const sessionIdRef = useRef(uuidv4());
   const syncTimeoutRef = useRef<number | null>(null);
 
   const syncToSupabase = useCallback(async () => {
@@ -30,7 +29,7 @@ export function useSupabaseSync(
       const yjsState = base64js.fromByteArray(Y.encodeStateAsUpdate(doc));
 
       const rows: DbRow[] = current.map((v, i) => {
-        const row = itineraryToRow(v, boardId, i, sessionIdRef.current);
+        const row = itineraryToRow(v, boardId, i, sessionId);
         if (i === 0) row.yjs_state = yjsState;
         return row;
       });
@@ -93,7 +92,7 @@ export function useSupabaseSync(
 
     channel
       .on('broadcast', { event: 'yjs-update' }, (payload) => {
-        if (payload.payload.sessionId === sessionIdRef.current) return;
+        if (payload.payload.sessionId === sessionId) return;
         console.log('Remote Yjs update received!');
         const update = new Uint8Array(payload.payload.update);
         Y.applyUpdate(doc, update, 'remote');
@@ -108,7 +107,7 @@ export function useSupabaseSync(
         channel.send({
           type: 'broadcast',
           event: 'yjs-update',
-          payload: { update: Array.from(update), sessionId: sessionIdRef.current }
+          payload: { update: Array.from(update), sessionId }
         });
         scheduleSyncToSupabase();
       }

@@ -6,6 +6,8 @@ import { deepCloneItinerary, cleanupOrphanedCityData, syncTravelSegments, Focuse
 import { useUndoRedo } from './useUndoRedo';
 import { useCopyPaste } from './useCopyPaste';
 import { useSupabaseSync } from './useSupabaseSync';
+import { usePresence } from './usePresence';
+import { CursorPosition, RemoteUser, LocalUser } from '../types/presence';
 
 export const ZOOM_MIN = 40;
 export const ZOOM_MAX = 500;
@@ -38,6 +40,12 @@ interface ItineraryContextType {
   boardId: string;
   isMarqueeActive: boolean;
   setIsMarqueeActive: (active: boolean) => void;
+  localUser: LocalUser;
+  remoteUsers: RemoteUser[];
+  remoteCursorsRef: React.RefObject<Map<string, CursorPosition | null>>;
+  updateCursor: (pos: CursorPosition | null) => void;
+  setDisplayName: (name: string) => void;
+  needsNameSelection: boolean;
 }
 
 const ItineraryContext = createContext<ItineraryContextType | undefined>(undefined);
@@ -76,9 +84,15 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
   const safeIndex = Math.min(activeVersionIndex, Math.max(versions.length - 1, 0));
   const itinerary = versions[safeIndex] || null;
 
+  // --- Session ID (shared between sync + presence) ---
+  const sessionId = useMemo(() => uuidv4(), [boardId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // --- Composed Hooks ---
-  const { loading, error, supabase } = useSupabaseSync(boardId, accessToken, store, doc);
+  const { loading, error, supabase } = useSupabaseSync(boardId, accessToken, store, doc, sessionId);
   const { pushUndo, undo: undoRaw, redo: redoRaw, canUndo, canRedo, skipSnapshotRef } = useUndoRedo(store, safeIndex);
+  const {
+    localUser, remoteUsers, remoteCursorsRef, updateCursor, setDisplayName, needsNameSelection,
+  } = usePresence(boardId, supabase, sessionId, loading, itinerary?.travelers ?? []);
 
   const setItinerary: React.Dispatch<React.SetStateAction<Itinerary>> = useCallback((action) => {
     if (!skipSnapshotRef.current) {
@@ -164,6 +178,7 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
       selection, setSelection, focusedCell, setFocusedCell, copy, paste, highlightedTravelerId, setHighlightedTravelerId,
       zoomLevel, setZoomLevel, undo, redo, canUndo, canRedo, boardId,
       isMarqueeActive, setIsMarqueeActive,
+      localUser, remoteUsers, remoteCursorsRef, updateCursor, setDisplayName, needsNameSelection,
     }}>
       {children}
     </ItineraryContext.Provider>

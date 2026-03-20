@@ -5,6 +5,7 @@ import { Download, Plus, Save, Trash2, Upload, X, ZoomIn, ZoomOut } from 'lucide
 import { cn } from '../utils/cn';
 import html2canvas from 'html2canvas';
 import { parseISO, format } from 'date-fns';
+import { OnlineUsers } from './OnlineUsers';
 
 export function Header() {
   const { itinerary, setItinerary, versions, activeVersionIndex, switchVersion, cloneVersion, deleteVersion, zoomLevel, setZoomLevel, setSelection } = useItinerary();
@@ -57,7 +58,7 @@ export function Header() {
   };
 
   return (
-      <header className="h-16 bg-slate-950 border-b border-slate-700 flex items-center justify-between px-6 shrink-0 z-20 shadow-sm relative">
+      <header className="h-16 bg-slate-950 border-b border-slate-700 flex items-center justify-between px-6 shrink-0 z-50 shadow-sm relative">
         <div className="flex items-center gap-4">
           <Link to="/">
             <img src="/favicon.png" alt="TravelBoard" className="w-10 h-10 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" />
@@ -104,6 +105,8 @@ export function Header() {
             </button>
           </div>
         </div>
+
+        <OnlineUsers />
 
         <div className="flex items-center gap-3">
           {!confirmClear ? (
