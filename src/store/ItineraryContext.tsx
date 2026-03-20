@@ -7,6 +7,7 @@ import { useUndoRedo } from './useUndoRedo';
 import { useCopyPaste } from './useCopyPaste';
 import { useSupabaseSync } from './useSupabaseSync';
 import { usePresence } from './usePresence';
+import { createBoardSupabaseClient } from '../lib/supabase';
 import { CursorPosition, RemoteCursorState, RemoteUser, LocalUser } from '../types/presence';
 
 export const ZOOM_MIN = 40;
@@ -86,13 +87,14 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
 
   // --- Session ID (shared between sync + presence) ---
   const sessionId = useMemo(() => uuidv4(), [boardId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const presenceSupabase = useMemo(() => createBoardSupabaseClient(accessToken), [accessToken]);
 
   // --- Composed Hooks ---
   const { loading, error, supabase } = useSupabaseSync(boardId, accessToken, store, doc, sessionId);
   const { pushUndo, undo: undoRaw, redo: redoRaw, canUndo, canRedo, skipSnapshotRef } = useUndoRedo(store, safeIndex);
   const {
     localUser, remoteUsers, remoteCursorsRef, updateCursor, setDisplayName, needsNameSelection,
-  } = usePresence(boardId, supabase, sessionId, loading, itinerary?.travelers ?? []);
+  } = usePresence(boardId, presenceSupabase, sessionId, loading, itinerary?.travelers ?? []);
 
   const setItinerary: React.Dispatch<React.SetStateAction<Itinerary>> = useCallback((action) => {
     if (!skipSnapshotRef.current) {

@@ -14,6 +14,17 @@ import { generatePresenceName } from '../utils/generatePresenceName';
 
 const PRESENCE_STORAGE_PREFIX = 'travelboard_presence_';
 const CURSOR_BROADCAST_INTERVAL_MS = 33;
+const PRESENCE_LEAVE_GRACE_MS = 5_000;
+
+function sameRemoteUsers(a: RemoteUser[], b: RemoteUser[]) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((user, index) =>
+    user.sessionId === b[index].sessionId &&
+    user.displayName === b[index].displayName &&
+    user.colorIndex === b[index].colorIndex,
+  );
+}
 
 export function usePresence(
   boardId: string,
@@ -54,8 +65,10 @@ export function usePresence(
 
   // --- Remote users (metadata only — no cursor positions) ---
   const [remoteUsers, setRemoteUsers] = useState<RemoteUser[]>([]);
+  const remoteUsersStateRef = useRef<RemoteUser[]>([]);
   // Cursor positions live in a ref to avoid React re-renders on every move
   const remoteCursorsRef = useRef<Map<string, RemoteCursorState>>(new Map());
+  const pendingRemovalTimeoutsRef = useRef<Map<string, number>>(new Map());
 
   // Keep the presence identity stable for the whole session. Recomputing it from
   // remote presence state can make this client appear to leave/rejoin as peers change.
@@ -80,6 +93,37 @@ export function usePresence(
   const cursorFlushTimeoutRef = useRef<number | null>(null);
   const channelRef = useRef<ReturnType<SupabaseClient['channel']> | null>(null);
   const subscribedRef = useRef(false);
+
+  useEffect(() => {
+    remoteUsersStateRef.current = remoteUsers;
+  }, [remoteUsers]);
+
+  const clearPendingRemoval = useCallback((sessionIdToKeep: string) => {
+    const timeoutId = pendingRemovalTimeoutsRef.current.get(sessionIdToKeep);
+    if (timeoutId === undefined) return;
+    clearTimeout(timeoutId);
+    pendingRemovalTimeoutsRef.current.delete(sessionIdToKeep);
+  }, []);
+
+  const removeRemoteUser = useCallback((sessionIdToRemove: string) => {
+    clearPendingRemoval(sessionIdToRemove);
+    setRemoteUsers((prev) => prev.filter((user) => user.sessionId !== sessionIdToRemove));
+
+    const nextCursors = new Map(remoteCursorsRef.current);
+    nextCursors.delete(sessionIdToRemove);
+    remoteCursorsRef.current = nextCursors;
+  }, [clearPendingRemoval]);
+
+  const scheduleRemoteUserRemoval = useCallback((sessionIdToRemove: string) => {
+    if (pendingRemovalTimeoutsRef.current.has(sessionIdToRemove)) return;
+
+    const timeoutId = window.setTimeout(() => {
+      pendingRemovalTimeoutsRef.current.delete(sessionIdToRemove);
+      removeRemoteUser(sessionIdToRemove);
+    }, PRESENCE_LEAVE_GRACE_MS);
+
+    pendingRemovalTimeoutsRef.current.set(sessionIdToRemove, timeoutId);
+  }, [removeRemoteUser]);
 
   // Track presence on the channel
   const trackPresence = useCallback(() => {
@@ -172,24 +216,31 @@ export function usePresence(
       );
 
       const activeIds = new Set<string>(newUsers.map((user) => user.sessionId));
-      const nextCursors = new Map(remoteCursorsRef.current);
-      for (const sessionKey of Array.from(nextCursors.keys()) as string[]) {
-        if (!activeIds.has(sessionKey)) {
-          nextCursors.delete(sessionKey);
+      for (const user of newUsers) {
+        clearPendingRemoval(user.sessionId);
+      }
+
+      for (const user of remoteUsersStateRef.current) {
+        if (!activeIds.has(user.sessionId)) {
+          scheduleRemoteUserRemoval(user.sessionId);
         }
       }
-      remoteCursorsRef.current = nextCursors;
 
-      // Only update React state when the user list actually changes
-      setRemoteUsers((prev) => {
-        if (prev.length !== newUsers.length) return newUsers;
-        const changed = newUsers.some((u, i) =>
-          u.sessionId !== prev[i].sessionId ||
-          u.displayName !== prev[i].displayName ||
-          u.colorIndex !== prev[i].colorIndex,
-        );
-        return changed ? newUsers : prev;
-      });
+      const retainedUsers = remoteUsersStateRef.current.filter(
+        (user) => !activeIds.has(user.sessionId) && pendingRemovalTimeoutsRef.current.has(user.sessionId),
+      );
+      const mergedUsers = [...newUsers];
+      for (const user of retainedUsers) {
+        if (!mergedUsers.some((nextUser) => nextUser.sessionId === user.sessionId)) {
+          mergedUsers.push(user);
+        }
+      }
+
+      mergedUsers.sort((a, b) =>
+        a.displayName.localeCompare(b.displayName) || a.sessionId.localeCompare(b.sessionId),
+      );
+
+      setRemoteUsers((prev) => sameRemoteUsers(prev, mergedUsers) ? prev : mergedUsers);
     };
 
     channel.on('presence', { event: 'sync' }, syncRemoteUsers);
@@ -205,11 +256,9 @@ export function usePresence(
       );
       if (leavingIds.size === 0) return;
 
-      const next = new Map(remoteCursorsRef.current);
       for (const leavingId of leavingIds) {
-        next.delete(leavingId);
+        scheduleRemoteUserRemoval(leavingId);
       }
-      remoteCursorsRef.current = next;
     });
     channel.on('broadcast', { event: 'cursor-pos' }, (payload) => {
       const nextPayload = payload.payload as CursorBroadcastPayload;
@@ -240,10 +289,14 @@ export function usePresence(
 
     return () => {
       subscribedRef.current = false;
+      for (const timeoutId of pendingRemovalTimeoutsRef.current.values()) {
+        clearTimeout(timeoutId);
+      }
+      pendingRemovalTimeoutsRef.current.clear();
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [boardId, loading, supabase, sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [boardId, loading, supabase, sessionId, clearPendingRemoval, scheduleRemoteUserRemoval]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Throttled local cursor update ---
   const updateCursor = useCallback((pos: CursorPosition | null) => {
