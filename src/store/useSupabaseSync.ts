@@ -9,8 +9,10 @@ import base64js from 'base64-js';
 const YJS_UPDATE_EVENT = 'yjs-update';
 const YJS_SYNC_REQUEST_EVENT = 'yjs-sync-request';
 const YJS_SYNC_RESPONSE_EVENT = 'yjs-sync-response';
-const SYNC_RETRY_MS = 2_000;
+const SYNC_RETRY_MS = 5_000;
+const MAX_SYNC_RETRY_MS = 30_000;
 const ANTI_ENTROPY_INTERVAL_MS = 10_000;
+const UPSERT_BATCH_SIZE = 1;
 
 interface YjsUpdatePayload {
   sessionId: string;
@@ -36,6 +38,22 @@ function decodeBinary(value: string): Uint8Array {
   return base64js.toByteArray(value);
 }
 
+async function upsertRowsInBatches(
+  supabase: SupabaseClient,
+  rows: DbRow[],
+) {
+  for (let i = 0; i < rows.length; i += UPSERT_BATCH_SIZE) {
+    const batch = rows.slice(i, i + UPSERT_BATCH_SIZE);
+    const { error } = await supabase
+      .from('itinerary_versions')
+      .upsert(batch, { onConflict: 'id' });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+}
+
 export function useSupabaseSync(
   boardId: string,
   accessToken: string,
@@ -57,6 +75,7 @@ export function useSupabaseSync(
   const pendingSyncRevisionRef = useRef(0);
   const persistedSyncRevisionRef = useRef(0);
   const syncInFlightRef = useRef(false);
+  const syncRetryDelayRef = useRef(SYNC_RETRY_MS);
   const needsSnapshotBootstrapRef = useRef(false);
   const resyncInFlightRef = useRef<Promise<void> | null>(null);
   const providerOriginRef = useRef({ source: 'supabase-yjs-provider' });
@@ -82,9 +101,9 @@ export function useSupabaseSync(
         return row;
       });
 
-      const { error } = await supabase.from('itinerary_versions').upsert(rows, { onConflict: 'id' });
-      if (error) console.error('Sync to Supabase failed:', error.message);
-      else persistedSyncRevisionRef.current = targetRevision;
+      await upsertRowsInBatches(supabase, rows);
+      persistedSyncRevisionRef.current = targetRevision;
+      syncRetryDelayRef.current = SYNC_RETRY_MS;
     } catch (e) {
       console.error('Failed to encode/sync Yjs state:', e);
     } finally {
@@ -96,10 +115,12 @@ export function useSupabaseSync(
           void syncToSupabase();
         }, SYNC_DEBOUNCE_MS);
       } else if (persistedSyncRevisionRef.current < pendingSyncRevisionRef.current) {
+        const retryDelay = syncRetryDelayRef.current;
+        syncRetryDelayRef.current = Math.min(syncRetryDelayRef.current * 2, MAX_SYNC_RETRY_MS);
         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
         syncTimeoutRef.current = window.setTimeout(() => {
           void syncToSupabase();
-        }, SYNC_RETRY_MS);
+        }, retryDelay);
       }
     }
   }, [boardId, supabase, doc, store]);

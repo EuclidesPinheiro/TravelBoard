@@ -2,7 +2,7 @@ import { Itinerary, CitySegment, Segment, TransportSegment, Traveler, Attraction
 import { v4 as uuidv4 } from 'uuid';
 
 export const MAX_UNDO = 50;
-export const SYNC_DEBOUNCE_MS = 500;
+export const SYNC_DEBOUNCE_MS = 1500;
 
 export function deepCloneItinerary(it: Itinerary): Itinerary {
   return JSON.parse(JSON.stringify(it, (key, value) => {
