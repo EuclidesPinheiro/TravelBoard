@@ -391,7 +391,7 @@ export function TimelineGrid() {
         ref={scrollRef}
         onMouseDown={handleMouseDown}
       >
-        <div className="inline-block min-w-full">
+        <div className="relative inline-block min-w-full">
           {/* Header Row (Dates) */}
           <div className="sticky top-0 z-30 flex bg-slate-950 border-b border-slate-700 shadow-sm" style={{ height: HEADER_HEIGHT }}>
             <div className="w-64 shrink-0 border-r border-slate-700 bg-slate-900 sticky left-0 z-40 flex items-center justify-between px-4 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
@@ -477,19 +477,20 @@ export function TimelineGrid() {
               <div className="flex-1" style={{ minWidth: days.length * zoomLevel }} />
             </div>
 
-            {/* Marquee Visual */}
-            {marquee && (
-              <div
-                className="absolute border-2 border-indigo-500 bg-indigo-500/20 pointer-events-none z-[100]"
-                style={{
-                  left: Math.min(marquee.startX, marquee.endX),
-                  top: Math.min(marquee.startY, marquee.endY),
-                  width: Math.abs(marquee.endX - marquee.startX),
-                  height: Math.abs(marquee.endY - marquee.startY),
-                }}
-              />
-            )}
           </div>
+
+          {/* Marquee Visual */}
+          {marquee && (
+            <div
+              className="absolute border-2 border-indigo-500 bg-indigo-500/20 pointer-events-none z-[100]"
+              style={{
+                left: Math.min(marquee.startX, marquee.endX),
+                top: Math.min(marquee.startY, marquee.endY),
+                width: Math.abs(marquee.endX - marquee.startX),
+                height: Math.abs(marquee.endY - marquee.startY),
+              }}
+            />
+          )}
         </div>
       </div>
 
