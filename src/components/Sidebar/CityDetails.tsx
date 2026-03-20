@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem } from '../../types';
+import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem, Itinerary, Segment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil, UserCheck, Lock } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
@@ -59,21 +59,104 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     }));
   }
 
+  function renameRecordKey<T>(
+    record: Record<string, T[]> | undefined,
+    oldKey: string,
+    newKey: string,
+  ): Record<string, T[]> | undefined {
+    if (!record || oldKey === newKey || !(oldKey in record)) return record;
+
+    const next = { ...record };
+    const movedItems = next[oldKey];
+    delete next[oldKey];
+    next[newKey] = next[newKey] ? [...next[newKey], ...movedItems] : movedItems;
+    return next;
+  }
+
+  function updateCityAndLinkedSegments(
+    segmentUpdater: (current: CitySegment) => CitySegment,
+    linkedUpdater?: (context: {
+      segment: CitySegment;
+      updatedSegment: CitySegment;
+      prevTransport: TransportSegment | null;
+      nextTransport: TransportSegment | null;
+    }) => {
+      prevTransport?: TransportSegment | null;
+      nextTransport?: TransportSegment | null;
+    },
+    itineraryUpdater?: (
+      prev: Itinerary,
+      currentSegment: CitySegment,
+      updatedSegment: CitySegment,
+    ) => Partial<Itinerary>,
+  ) {
+    setItinerary((prev) => {
+      const travelerIdx = prev.travelers.findIndex((t) => t.id === traveler.id);
+      if (travelerIdx === -1) return prev;
+
+      const currentTraveler = prev.travelers[travelerIdx];
+      const segIdx = currentTraveler.segments.findIndex((s) => s.id === segmentId);
+      if (segIdx === -1) return prev;
+
+      const currentSegment = currentTraveler.segments[segIdx] as CitySegment;
+      const nextSegments = [...currentTraveler.segments] as Segment[];
+      const prevTransportSegment =
+        segIdx > 0 && nextSegments[segIdx - 1].type === 'transport'
+          ? (nextSegments[segIdx - 1] as TransportSegment)
+          : null;
+      const nextTransportSegment =
+        segIdx < nextSegments.length - 1 && nextSegments[segIdx + 1].type === 'transport'
+          ? (nextSegments[segIdx + 1] as TransportSegment)
+          : null;
+
+      const updatedSegment = segmentUpdater(currentSegment);
+      nextSegments[segIdx] = updatedSegment;
+
+      const linkedUpdates = linkedUpdater?.({
+        segment: currentSegment,
+        updatedSegment,
+        prevTransport: prevTransportSegment,
+        nextTransport: nextTransportSegment,
+      });
+
+      if (prevTransportSegment && linkedUpdates?.prevTransport) {
+        nextSegments[segIdx - 1] = linkedUpdates.prevTransport;
+      }
+
+      if (nextTransportSegment && linkedUpdates?.nextTransport) {
+        nextSegments[segIdx + 1] = linkedUpdates.nextTransport;
+      }
+
+      const nextTravelers = [...prev.travelers];
+      nextTravelers[travelerIdx] = {
+        ...currentTraveler,
+        segments: nextSegments,
+      };
+
+      const nextItinerary = {
+        ...prev,
+        travelers: nextTravelers,
+      };
+
+      return itineraryUpdater
+        ? { ...nextItinerary, ...itineraryUpdater(prev, currentSegment, updatedSegment) }
+        : nextItinerary;
+    });
+  }
+
   function handleArrivalDateChange(newDate: string) {
     if (!newDate) return;
     const newArrival = toDateTime(newDate, arrivalTime);
     const depDt = toDateTime(departureDate, departureTime, "23:59");
     if (newArrival > depDt) return;
-    updateSegment(traveler.id, segment.id, (s) => ({
-      ...s,
-      startDate: newDate,
-    }));
-    if (prevTransport) {
-      updateSegment(traveler.id, prevTransport.id, (s) => ({
-        ...s,
-        arrivalDate: newDate,
-      }));
-    }
+    updateCityAndLinkedSegments(
+      (s) => ({ ...s, startDate: newDate }),
+      ({ prevTransport: linkedPrevTransport }) => ({
+        prevTransport: linkedPrevTransport
+          ? { ...linkedPrevTransport, arrivalDate: newDate }
+          : null,
+      }),
+    );
   }
 
   function handleArrivalTimeChange(newTime: string) {
@@ -81,16 +164,14 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     const newArrival = toDateTime(arrivalDate, newTime);
     const depDt = toDateTime(departureDate, departureTime, "23:59");
     if (newArrival > depDt) return;
-    updateSegment(traveler.id, segment.id, (s) => ({
-      ...s,
-      startTime: newTime,
-    }));
-    if (prevTransport) {
-      updateSegment(traveler.id, prevTransport.id, (s) => ({
-        ...s,
-        arrivalTime: newTime,
-      }));
-    }
+    updateCityAndLinkedSegments(
+      (s) => ({ ...s, startTime: newTime }),
+      ({ prevTransport: linkedPrevTransport }) => ({
+        prevTransport: linkedPrevTransport
+          ? { ...linkedPrevTransport, arrivalTime: newTime }
+          : null,
+      }),
+    );
   }
 
   function handleDepartureDateChange(newDate: string) {
@@ -98,13 +179,14 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     const arrDt = toDateTime(arrivalDate, arrivalTime);
     const newDeparture = toDateTime(newDate, departureTime, "23:59");
     if (newDeparture < arrDt) return;
-    updateSegment(traveler.id, segment.id, (s) => ({ ...s, endDate: newDate }));
-    if (nextTransport) {
-      updateSegment(traveler.id, nextTransport.id, (s) => ({
-        ...s,
-        departureDate: newDate,
-      }));
-    }
+    updateCityAndLinkedSegments(
+      (s) => ({ ...s, endDate: newDate }),
+      ({ nextTransport: linkedNextTransport }) => ({
+        nextTransport: linkedNextTransport
+          ? { ...linkedNextTransport, departureDate: newDate }
+          : null,
+      }),
+    );
   }
 
   function handleDepartureTimeChange(newTime: string) {
@@ -112,13 +194,14 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
     const arrDt = toDateTime(arrivalDate, arrivalTime);
     const newDeparture = toDateTime(departureDate, newTime);
     if (newDeparture < arrDt) return;
-    updateSegment(traveler.id, segment.id, (s) => ({ ...s, endTime: newTime }));
-    if (nextTransport) {
-      updateSegment(traveler.id, nextTransport.id, (s) => ({
-        ...s,
-        departureTime: newTime,
-      }));
-    }
+    updateCityAndLinkedSegments(
+      (s) => ({ ...s, endTime: newTime }),
+      ({ nextTransport: linkedNextTransport }) => ({
+        nextTransport: linkedNextTransport
+          ? { ...linkedNextTransport, departureTime: newTime }
+          : null,
+      }),
+    );
   }
 
   // Find co-presence
@@ -172,22 +255,24 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
   }
 
   function handleCityNameChange(newName: string) {
-    updateSegment(traveler.id, segment.id, (s) => ({
-      ...s,
-      cityName: newName,
-    }));
-    if (prevTransport) {
-      updateSegment(traveler.id, prevTransport.id, (s) => ({
+    updateCityAndLinkedSegments(
+      (s) => ({
         ...s,
-        to: newName,
-      }));
-    }
-    if (nextTransport) {
-      updateSegment(traveler.id, nextTransport.id, (s) => ({
-        ...s,
-        from: newName,
-      }));
-    }
+        cityName: newName,
+      }),
+      ({ prevTransport: linkedPrevTransport, nextTransport: linkedNextTransport }) => ({
+        prevTransport: linkedPrevTransport
+          ? { ...linkedPrevTransport, to: newName }
+          : null,
+        nextTransport: linkedNextTransport
+          ? { ...linkedNextTransport, from: newName }
+          : null,
+      }),
+      (prev, currentSegment, updatedSegment) => ({
+        attractions: renameRecordKey(prev.attractions, currentSegment.cityName, updatedSegment.cityName),
+        checklists: renameRecordKey(prev.checklists, currentSegment.cityName, updatedSegment.cityName),
+      }),
+    );
   }
 
   const locked = traveler.locked === true;
