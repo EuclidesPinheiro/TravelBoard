@@ -20,6 +20,7 @@ export function OnlineUsers() {
   const [customName, setCustomName] = useState('');
   const pickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isUnnamed = needsNameSelection;
 
   // Auto-open picker when name selection is needed
   useEffect(() => {
@@ -28,17 +29,19 @@ export function OnlineUsers() {
     }
   }, [needsNameSelection]);
 
-  // Close picker on outside click
+  // Close picker on outside click — but not if the user still needs to pick a name
   useEffect(() => {
     if (!pickerOpen) return;
     function handleClick(e: MouseEvent) {
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        setPickerOpen(false);
+        if (!needsNameSelection) {
+          setPickerOpen(false);
+        }
       }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [pickerOpen]);
+  }, [pickerOpen, needsNameSelection]);
 
   // Focus input when picker opens
   useEffect(() => {
@@ -81,16 +84,18 @@ export function OnlineUsers() {
                 'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white transition-transform hover:scale-110',
                 isLocal && 'ring-2 ring-white/60 cursor-pointer',
                 !isLocal && 'cursor-default',
+                isLocal && isUnnamed && 'animate-pulse ring-amber-400',
               )}
-              style={{ backgroundColor: user.color }}
-              title={user.displayName + (isLocal ? ' (you)' : '')}
+              style={{ backgroundColor: isLocal && isUnnamed ? '#64748b' : user.color }}
             >
-              {getInitials(user.displayName)}
+              {isLocal && isUnnamed ? '?' : getInitials(user.displayName)}
             </button>
-            {/* Tooltip */}
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-800 text-slate-200 text-[10px] font-medium rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-              {user.displayName}{isLocal ? ' (you)' : ''}
-            </div>
+            {/* Tooltip — hidden while picker is open to avoid overlap */}
+            {!pickerOpen && (
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-slate-800 text-slate-200 text-[10px] font-medium rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                {isLocal && isUnnamed ? 'Click to set your name' : user.displayName}{isLocal && !isUnnamed ? ' (you)' : ''}
+              </div>
+            )}
           </div>
         );
       })}
@@ -108,7 +113,7 @@ export function OnlineUsers() {
       {pickerOpen && (
         <div className="absolute top-full mt-2 left-0 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 min-w-[200px] py-1">
           <div className="px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-            Choose your identity
+            {isUnnamed ? 'Who are you?' : 'Change identity'}
           </div>
 
           {itinerary.travelers.map((t) => (

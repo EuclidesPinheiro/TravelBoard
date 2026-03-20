@@ -58,7 +58,7 @@ export function usePresence(
 
   const localUser: LocalUser = useMemo(() => ({
     sessionId,
-    displayName: displayName || 'Choosing...',
+    displayName: displayName || 'Anonymous',
     color: getPresenceColor(colorIndex),
     colorIndex,
   }), [sessionId, displayName, colorIndex]);
@@ -75,7 +75,7 @@ export function usePresence(
     if (!channel) return;
     const payload: PresencePayload = {
       sessionId,
-      displayName: displayName || 'Choosing...',
+      displayName: displayName || 'Anonymous',
       colorIndex,
       cursor: cursorRef.current,
     };
