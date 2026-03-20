@@ -8,6 +8,7 @@ import { cn } from '../../utils/cn';
 import { Plus, CalendarCog } from 'lucide-react';
 import { EditDatesModal } from '../Modals/EditDatesModal';
 import { SelectionItem } from '../../types';
+import { RemoteCursors } from './RemoteCursors';
 
 function selectionItemsMatch(a: SelectionItem, b: SelectionItem): boolean {
   if (a.type !== b.type) return false;
@@ -18,7 +19,7 @@ function selectionItemsMatch(a: SelectionItem, b: SelectionItem): boolean {
 const ROW_HEIGHT = 72;
 
 export function TimelineGrid() {
-  const { itinerary, zoomLevel, setZoomLevel, setItinerary, setSelection, setIsMarqueeActive, isMarqueeActive } = useItinerary();
+  const { itinerary, zoomLevel, setZoomLevel, setItinerary, setSelection, setIsMarqueeActive, isMarqueeActive, updateCursor } = useItinerary();
   const days = getTimelineDays(itinerary.startDate, itinerary.endDate);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
@@ -295,12 +296,35 @@ export function TimelineGrid() {
     };
   }, [setZoomLevel]);
 
+  const handleCursorMove = useCallback((e: React.MouseEvent) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const viewportX = e.clientX - rect.left;
+    const viewportY = e.clientY - rect.top;
+    // Only track if in content area (past sidebar and header)
+    if (viewportX < SIDEBAR_WIDTH || viewportY < 56) {
+      updateCursor(null);
+      return;
+    }
+    updateCursor({
+      x: viewportX + el.scrollLeft,
+      y: viewportY + el.scrollTop,
+    });
+  }, [updateCursor]);
+
+  const handleCursorLeave = useCallback(() => {
+    updateCursor(null);
+  }, [updateCursor]);
+
   return (
-    <div 
-      className="flex-1 overflow-auto bg-slate-950 relative select-none" 
-      id="timeline-grid" 
+    <div
+      className="flex-1 overflow-auto bg-slate-950 relative select-none"
+      id="timeline-grid"
       ref={scrollRef}
       onMouseDown={handleMouseDown}
+      onMouseMove={handleCursorMove}
+      onMouseLeave={handleCursorLeave}
     >
       <div className="inline-block min-w-full">
         {/* Header Row (Dates) */}
@@ -399,6 +423,8 @@ export function TimelineGrid() {
         isOpen={isEditDatesOpen}
         onClose={() => setIsEditDatesOpen(false)}
       />
+
+      <RemoteCursors scrollRef={scrollRef} />
 
       {/* Marquee Visual */}
       {marquee && (
