@@ -10,6 +10,7 @@ const YJS_UPDATE_EVENT = 'yjs-update';
 const YJS_SYNC_REQUEST_EVENT = 'yjs-sync-request';
 const YJS_SYNC_RESPONSE_EVENT = 'yjs-sync-response';
 const SYNC_RETRY_MS = 2_000;
+const ANTI_ENTROPY_INTERVAL_MS = 10_000;
 
 interface YjsUpdatePayload {
   sessionId: string;
@@ -332,6 +333,12 @@ export function useSupabaseSync(
       }
     };
 
+    const antiEntropyInterval = window.setInterval(() => {
+      if (!subscribedRef.current || document.visibilityState !== 'visible') return;
+      requestPeerSync();
+      void refreshFromSupabase();
+    }, ANTI_ENTROPY_INTERVAL_MS);
+
     window.addEventListener('focus', handleResume);
     window.addEventListener('pagehide', handlePageHide);
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -340,6 +347,7 @@ export function useSupabaseSync(
       subscribedRef.current = false;
       channelRef.current = null;
       doc.off('update', onUpdate);
+      clearInterval(antiEntropyInterval);
       window.removeEventListener('focus', handleResume);
       window.removeEventListener('pagehide', handlePageHide);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
