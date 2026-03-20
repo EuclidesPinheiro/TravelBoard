@@ -7,7 +7,7 @@ import { useUndoRedo } from './useUndoRedo';
 import { useCopyPaste } from './useCopyPaste';
 import { useSupabaseSync } from './useSupabaseSync';
 import { usePresence } from './usePresence';
-import { CursorPosition, RemoteUser, LocalUser } from '../types/presence';
+import { CursorPosition, RemoteCursorState, RemoteUser, LocalUser } from '../types/presence';
 
 export const ZOOM_MIN = 40;
 export const ZOOM_MAX = 500;
@@ -42,7 +42,7 @@ interface ItineraryContextType {
   setIsMarqueeActive: (active: boolean) => void;
   localUser: LocalUser;
   remoteUsers: RemoteUser[];
-  remoteCursorsRef: React.RefObject<Map<string, CursorPosition | null>>;
+  remoteCursorsRef: React.RefObject<Map<string, RemoteCursorState>>;
   updateCursor: (pos: CursorPosition | null) => void;
   setDisplayName: (name: string) => void;
   needsNameSelection: boolean;

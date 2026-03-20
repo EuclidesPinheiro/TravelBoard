@@ -7,7 +7,17 @@ export interface PresencePayload {
   sessionId: string;
   displayName: string;
   colorIndex: number;
-  cursor: CursorPosition | null; // null = cursor outside grid
+}
+
+export interface CursorBroadcastPayload {
+  sessionId: string;
+  cursor: CursorPosition | null; // null = cursor outside the board viewport
+  sentAt: number;
+}
+
+export interface RemoteCursorState {
+  cursor: CursorPosition | null;
+  lastUpdatedAt: number;
 }
 
 export interface RemoteUser {
