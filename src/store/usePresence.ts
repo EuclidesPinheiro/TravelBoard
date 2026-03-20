@@ -57,11 +57,10 @@ export function usePresence(
   // Cursor positions live in a ref to avoid React re-renders on every move
   const remoteCursorsRef = useRef<Map<string, RemoteCursorState>>(new Map());
 
-  // --- Color assignment ---
-  const colorIndex = useMemo(() => {
-    const existingIndices = remoteUsers.map((u) => u.colorIndex);
-    return assignColorIndex(sessionId, existingIndices);
-  }, [sessionId, remoteUsers]);
+  // Keep the presence identity stable for the whole session. Recomputing it from
+  // remote presence state can make this client appear to leave/rejoin as peers change.
+  const colorIndexRef = useRef(assignColorIndex(sessionId, []));
+  const colorIndex = colorIndexRef.current;
 
   // Use the matched traveler's color when the name matches, otherwise fallback to presence palette
   const localUser: LocalUser = useMemo(() => {
@@ -80,6 +79,7 @@ export function usePresence(
   const cursorAnimationFrameRef = useRef<number | null>(null);
   const cursorFlushTimeoutRef = useRef<number | null>(null);
   const channelRef = useRef<ReturnType<SupabaseClient['channel']> | null>(null);
+  const subscribedRef = useRef(false);
 
   // Track presence on the channel
   const trackPresence = useCallback(() => {
@@ -97,7 +97,7 @@ export function usePresence(
     cursorFlushTimeoutRef.current = null;
     cursorAnimationFrameRef.current = null;
     const channel = channelRef.current;
-    if (!channel) return;
+    if (!channel || !subscribedRef.current) return;
 
     lastCursorSendTimeRef.current = performance.now();
     const payload: CursorBroadcastPayload = {
@@ -105,7 +105,7 @@ export function usePresence(
       cursor: cursorRef.current,
       sentAt: Date.now(),
     };
-    channel.send({
+    void channel.send({
       type: 'broadcast',
       event: 'cursor-pos',
       payload,
@@ -134,8 +134,8 @@ export function usePresence(
 
   // Re-track when name or colorIndex changes
   useEffect(() => {
-    if (!loading && channelRef.current) {
-      trackPresence();
+    if (!loading && channelRef.current && subscribedRef.current) {
+      void trackPresence();
     }
   }, [trackPresence, loading]);
 
@@ -225,11 +225,21 @@ export function usePresence(
 
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        trackPresence();
+        subscribedRef.current = true;
+        void trackPresence();
+        if (cursorRef.current !== null) {
+          flushCursorBroadcast();
+        }
+        return;
+      }
+
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        subscribedRef.current = false;
       }
     });
 
     return () => {
+      subscribedRef.current = false;
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
