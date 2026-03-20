@@ -54,7 +54,6 @@ export function TravelerRow({
 
   function toggleLock(e: React.MouseEvent) {
     e.stopPropagation();
-    setHighlightedTravelerId(traveler.id);
     setItinerary(prev => ({
       ...prev,
       travelers: prev.travelers.map(t =>
