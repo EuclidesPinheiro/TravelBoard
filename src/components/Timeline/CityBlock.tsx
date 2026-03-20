@@ -409,7 +409,6 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   }
 
   function handleClick(e: React.MouseEvent) {
-    if (locked) return;
     if (didDragRef.current) {
       didDragRef.current = false;
       return;

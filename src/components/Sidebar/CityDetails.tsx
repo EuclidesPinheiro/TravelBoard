@@ -352,6 +352,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         travelerId={traveler.id}
         allTravelers={itinerary.travelers}
         attractions={itinerary.attractions?.[segment.cityName] ?? []}
+        locked={locked}
         onUpdate={(newAttractions) => {
           setItinerary(prev => ({
             ...prev,
@@ -369,6 +370,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         travelerId={traveler.id}
         allTravelers={itinerary.travelers}
         items={itinerary.checklists?.[segment.cityName] ?? []}
+        locked={locked}
         onUpdate={(newItems) => {
           setItinerary(prev => ({
             ...prev,
@@ -1154,6 +1156,7 @@ interface AttractionsSectionProps {
   allTravelers: Traveler[];
   attractions: Attraction[];
   onUpdate: (newAttractions: Attraction[]) => void;
+  locked?: boolean;
 }
 
 const CATEGORY_CONFIG: Record<AttractionCategory, { label: string; color: string; bg: string; border: string }> = {
@@ -1163,7 +1166,7 @@ const CATEGORY_CONFIG: Record<AttractionCategory, { label: string; color: string
   yolo:    { label: 'YOLO',                 color: '#F97316', bg: 'bg-orange-50',  border: 'border-orange-300' },
 };
 
-function AttractionsSection({ cityName, travelerId, allTravelers, attractions, onUpdate }: AttractionsSectionProps) {
+function AttractionsSection({ cityName, travelerId, allTravelers, attractions, onUpdate, locked }: AttractionsSectionProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newLink, setNewLink] = useState('');
@@ -1283,19 +1286,21 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
 
                   <div className="flex items-center gap-1 shrink-0">
                     <button
-                      onClick={() => toggleVote(attraction.id)}
+                      onClick={() => !locked && toggleVote(attraction.id)}
+                      disabled={locked}
                       className={cn(
                         "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors",
                         hasVoted
                           ? "bg-indigo-800/60 text-indigo-300 hover:bg-indigo-200"
-                          : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+                          : "bg-slate-800 text-slate-500 hover:bg-slate-700",
+                        locked && "opacity-60 cursor-not-allowed"
                       )}
                       title={hasVoted ? "Remove vote" : "Vote"}
                     >
                       <ThumbsUp size={12} className={hasVoted ? "fill-indigo-600" : ""} />
                       {attraction.votes.length}
                     </button>
-                    {isOwner && (
+                    {isOwner && !locked && (
                       <button
                         onClick={() => removeAttraction(attraction.id)}
                         className="p-1 text-slate-600 hover:text-red-400 transition-colors"
@@ -1339,7 +1344,7 @@ function AttractionsSection({ cityName, travelerId, allTravelers, attractions, o
         </div>
       )}
 
-      {isAdding ? (
+      {locked ? null : isAdding ? (
         <div className="bg-slate-950 border border-slate-700 rounded-lg p-3 space-y-3 shadow-sm">
           <input
             type="text"
@@ -1460,9 +1465,10 @@ interface ChecklistSectionProps {
   allTravelers: Traveler[];
   items: ChecklistItem[];
   onUpdate: (newItems: ChecklistItem[]) => void;
+  locked?: boolean;
 }
 
-function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate }: ChecklistSectionProps) {
+function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate, locked }: ChecklistSectionProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [newText, setNewText] = useState('');
 
@@ -1543,8 +1549,12 @@ function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate 
                 )}
               >
                 <button
-                  onClick={() => toggleComplete(item.id)}
-                  className="mt-0.5 shrink-0 text-slate-500 hover:text-teal-400 transition-colors"
+                  onClick={() => !locked && toggleComplete(item.id)}
+                  disabled={locked}
+                  className={cn(
+                    "mt-0.5 shrink-0 text-slate-500 hover:text-teal-400 transition-colors",
+                    locked && "opacity-60 cursor-not-allowed"
+                  )}
                 >
                   {isDone
                     ? <CheckSquare size={16} className="text-teal-400" />
@@ -1582,7 +1592,7 @@ function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate 
                   </div>
                 </div>
 
-                {isOwner && (
+                {isOwner && !locked && (
                   <button
                     onClick={() => removeItem(item.id)}
                     className="p-0.5 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
@@ -1598,7 +1608,7 @@ function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate 
       )}
 
       {/* Add form */}
-      {isAdding ? (
+      {locked ? null : isAdding ? (
         <div className="flex gap-2">
           <input
             type="text"
