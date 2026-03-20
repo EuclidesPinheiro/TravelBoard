@@ -1,12 +1,19 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { CursorPosition, PresencePayload, RemoteUser, LocalUser } from '../types/presence';
+import {
+  CursorBroadcastPayload,
+  CursorPosition,
+  PresencePayload,
+  RemoteCursorState,
+  RemoteUser,
+  LocalUser,
+} from '../types/presence';
 import { Traveler } from '../types';
 import { assignColorIndex, getPresenceColor } from '../utils/presenceColors';
 import { generatePresenceName } from '../utils/generatePresenceName';
 
 const PRESENCE_STORAGE_PREFIX = 'travelboard_presence_';
-const CURSOR_THROTTLE_MS = 50;
+const CURSOR_BROADCAST_INTERVAL_MS = 33;
 
 export function usePresence(
   boardId: string,
@@ -48,7 +55,7 @@ export function usePresence(
   // --- Remote users (metadata only — no cursor positions) ---
   const [remoteUsers, setRemoteUsers] = useState<RemoteUser[]>([]);
   // Cursor positions live in a ref to avoid React re-renders on every move
-  const remoteCursorsRef = useRef(new Map<string, CursorPosition | null>());
+  const remoteCursorsRef = useRef<Map<string, RemoteCursorState>>(new Map());
 
   // --- Color assignment ---
   const colorIndex = useMemo(() => {
@@ -69,8 +76,9 @@ export function usePresence(
 
   // --- Channel refs ---
   const cursorRef = useRef<CursorPosition | null>(null);
-  const lastTrackTimeRef = useRef(0);
-  const rafIdRef = useRef<number | null>(null);
+  const lastCursorSendTimeRef = useRef(0);
+  const cursorAnimationFrameRef = useRef<number | null>(null);
+  const cursorFlushTimeoutRef = useRef<number | null>(null);
   const channelRef = useRef<ReturnType<SupabaseClient['channel']> | null>(null);
 
   // Track presence on the channel
@@ -81,10 +89,48 @@ export function usePresence(
       sessionId,
       displayName: displayName || 'Anonymous',
       colorIndex,
-      cursor: cursorRef.current,
     };
     channel.track(payload);
   }, [sessionId, displayName, colorIndex]);
+
+  const flushCursorBroadcast = useCallback(() => {
+    cursorFlushTimeoutRef.current = null;
+    cursorAnimationFrameRef.current = null;
+    const channel = channelRef.current;
+    if (!channel) return;
+
+    lastCursorSendTimeRef.current = performance.now();
+    const payload: CursorBroadcastPayload = {
+      sessionId,
+      cursor: cursorRef.current,
+      sentAt: Date.now(),
+    };
+    channel.send({
+      type: 'broadcast',
+      event: 'cursor-pos',
+      payload,
+    });
+  }, [sessionId]);
+
+  const scheduleCursorBroadcast = useCallback(() => {
+    const now = performance.now();
+    const elapsed = now - lastCursorSendTimeRef.current;
+
+    if (elapsed >= CURSOR_BROADCAST_INTERVAL_MS) {
+      if (cursorFlushTimeoutRef.current !== null) {
+        clearTimeout(cursorFlushTimeoutRef.current);
+        cursorFlushTimeoutRef.current = null;
+      }
+      flushCursorBroadcast();
+      return;
+    }
+
+    if (cursorFlushTimeoutRef.current !== null) return;
+
+    cursorFlushTimeoutRef.current = window.setTimeout(() => {
+      flushCursorBroadcast();
+    }, CURSOR_BROADCAST_INTERVAL_MS - elapsed);
+  }, [flushCursorBroadcast]);
 
   // Re-track when name or colorIndex changes
   useEffect(() => {
@@ -97,13 +143,17 @@ export function usePresence(
   useEffect(() => {
     if (loading) return;
 
-    const channel = supabase.channel(`board-${boardId}-presence`);
+    const channel = supabase.channel(`board-${boardId}-presence`, {
+      config: {
+        broadcast: { ack: false },
+        presence: { key: sessionId },
+      },
+    });
     channelRef.current = channel;
 
-    channel.on('presence', { event: 'sync' }, () => {
+    const syncRemoteUsers = () => {
       const state = channel.presenceState<PresencePayload>();
       const newUsers: RemoteUser[] = [];
-      const newCursors = new Map<string, CursorPosition | null>();
 
       for (const key of Object.keys(state)) {
         for (const presence of state[key]) {
@@ -114,12 +164,21 @@ export function usePresence(
             colorIndex: presence.colorIndex,
             color: getPresenceColor(presence.colorIndex),
           });
-          newCursors.set(presence.sessionId, presence.cursor);
         }
       }
 
-      // Cursor positions update the ref (no re-render)
-      remoteCursorsRef.current = newCursors;
+      newUsers.sort((a, b) =>
+        a.displayName.localeCompare(b.displayName) || a.sessionId.localeCompare(b.sessionId),
+      );
+
+      const activeIds = new Set<string>(newUsers.map((user) => user.sessionId));
+      const nextCursors = new Map(remoteCursorsRef.current);
+      for (const sessionKey of Array.from(nextCursors.keys()) as string[]) {
+        if (!activeIds.has(sessionKey)) {
+          nextCursors.delete(sessionKey);
+        }
+      }
+      remoteCursorsRef.current = nextCursors;
 
       // Only update React state when the user list actually changes
       setRemoteUsers((prev) => {
@@ -131,6 +190,37 @@ export function usePresence(
         );
         return changed ? newUsers : prev;
       });
+    };
+
+    channel.on('presence', { event: 'sync' }, syncRemoteUsers);
+    channel.on('presence', { event: 'join' }, syncRemoteUsers);
+    channel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
+      syncRemoteUsers();
+      if (!leftPresences) return;
+
+      const leavingIds = new Set(
+        leftPresences
+          .map((presence) => presence.sessionId)
+          .filter((id): id is string => typeof id === 'string'),
+      );
+      if (leavingIds.size === 0) return;
+
+      const next = new Map(remoteCursorsRef.current);
+      for (const leavingId of leavingIds) {
+        next.delete(leavingId);
+      }
+      remoteCursorsRef.current = next;
+    });
+    channel.on('broadcast', { event: 'cursor-pos' }, (payload) => {
+      const nextPayload = payload.payload as CursorBroadcastPayload;
+      if (!nextPayload || nextPayload.sessionId === sessionId) return;
+
+      const next = new Map(remoteCursorsRef.current);
+      next.set(nextPayload.sessionId, {
+        cursor: nextPayload.cursor,
+        lastUpdatedAt: nextPayload.sentAt || Date.now(),
+      });
+      remoteCursorsRef.current = next;
     });
 
     channel.subscribe(async (status) => {
@@ -148,19 +238,21 @@ export function usePresence(
   // --- Throttled local cursor update ---
   const updateCursor = useCallback((pos: CursorPosition | null) => {
     cursorRef.current = pos;
-    if (rafIdRef.current !== null) return;
-    rafIdRef.current = requestAnimationFrame(() => {
-      rafIdRef.current = null;
-      const now = performance.now();
-      if (now - lastTrackTimeRef.current < CURSOR_THROTTLE_MS) return;
-      lastTrackTimeRef.current = now;
-      trackPresence();
+    if (cursorAnimationFrameRef.current !== null) return;
+
+    cursorAnimationFrameRef.current = requestAnimationFrame(() => {
+      scheduleCursorBroadcast();
     });
-  }, [trackPresence]);
+  }, [scheduleCursorBroadcast]);
 
   useEffect(() => {
     return () => {
-      if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current);
+      if (cursorAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(cursorAnimationFrameRef.current);
+      }
+      if (cursorFlushTimeoutRef.current !== null) {
+        clearTimeout(cursorFlushTimeoutRef.current);
+      }
     };
   }, []);
 
