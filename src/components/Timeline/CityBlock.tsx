@@ -89,6 +89,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   const isSelected = selection.some(
     (s) => s.type === "city" && s.segmentId === segment.id,
   );
+  const isMultiSelection = selection.length > 1;
   const cityColor = getCityColor(segment.cityName);
   const hasStays = segment.stays && segment.stays.length > 0;
 
@@ -491,6 +492,11 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
   }
 
   const isDragging = hasDragged;
+  const selectionShadow = isSelected
+    ? isMultiSelection
+      ? `0 0 0 1px ${cityColor}cc, 0 0 0 4px ${cityColor}22, 0 8px 18px rgba(15,23,42,0.28)`
+      : `0 0 0 1px ${cityColor}e6, 0 0 0 4px ${cityColor}2b, 0 10px 22px rgba(15,23,42,0.32)`
+    : undefined;
 
   // Snapped preview during drag
   let previewLabel = "";
@@ -526,16 +532,17 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         data-traveler-id={traveler.id}
         data-segment-id={segment.id}
         className={cn(
-          "absolute top-1/2 -translate-y-1/2 h-10 rounded-md shadow-sm border flex items-center justify-center transition-shadow hover:shadow-md hover:z-10 overflow-hidden group pointer-events-auto",
+          "absolute top-1/2 -translate-y-1/2 h-10 rounded-md border flex items-center justify-center transition-[box-shadow,border-color,background-color] hover:z-10 overflow-hidden group pointer-events-auto",
           locked ? "cursor-default" : "cursor-pointer",
-          isSelected ? "ring-2 ring-indigo-500 z-10" : "border-slate-700/60",
+          isSelected ? "z-10" : "border-slate-700/60 shadow-sm hover:shadow-md",
           isDragging && "z-30 shadow-lg opacity-90",
         )}
         style={{
           left: `${visualLeft}px`,
           width: `${visualWidth}px`,
-          backgroundColor: `${cityColor}40`,
-          borderColor: `${cityColor}40`,
+          backgroundColor: isSelected ? `${cityColor}4a` : `${cityColor}36`,
+          borderColor: isSelected ? `${cityColor}c0` : `${cityColor}40`,
+          boxShadow: isDragging ? undefined : selectionShadow,
           transition: isDragging ? "none" : undefined,
           userSelect: "none",
         }}
@@ -551,6 +558,15 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
             : `${segment.cityName} (${segment.startDate} to ${segment.endDate})`
         }
       >
+        {isSelected && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `linear-gradient(180deg, ${cityColor}14 0%, transparent 55%)`,
+            }}
+          />
+        )}
+
         {/* Left resize handle */}
         {!locked && (
           <div
