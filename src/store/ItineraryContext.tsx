@@ -113,7 +113,41 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
 
     if (JSON.stringify(plainCurrent) !== JSON.stringify(newItinerary)) {
       doc.transact(() => {
-        store.versions.splice(safeIndex, 1, newItinerary);
+        // Deep update to avoid large Yjs diffs from full object replacement
+        const updateNode = (target: any, source: any) => {
+          if (Array.isArray(source)) {
+            if (target.length !== source.length) {
+              target.splice(0, target.length, ...source);
+            } else {
+              for (let i = 0; i < source.length; i++) {
+                if (typeof source[i] === 'object' && source[i] !== null) {
+                  updateNode(target[i], source[i]);
+                } else if (target[i] !== source[i]) {
+                  target[i] = source[i];
+                }
+              }
+            }
+          } else {
+            for (const key in source) {
+              if (typeof source[key] === 'object' && source[key] !== null) {
+                if (!target[key]) {
+                  target[key] = source[key];
+                } else {
+                  updateNode(target[key], source[key]);
+                }
+              } else if (target[key] !== source[key]) {
+                target[key] = source[key];
+              }
+            }
+            // Remove deleted keys
+            for (const key in target) {
+              if (!(key in source)) {
+                delete target[key];
+              }
+            }
+          }
+        };
+        updateNode(store.versions[safeIndex], newItinerary);
       });
     }
   }, [safeIndex, store, doc, pushUndo, skipSnapshotRef]);
