@@ -56,12 +56,16 @@ export function usePresence(
     return assignColorIndex(sessionId, existingIndices);
   }, [sessionId, remoteUsers]);
 
-  const localUser: LocalUser = useMemo(() => ({
-    sessionId,
-    displayName: displayName || 'Anonymous',
-    color: getPresenceColor(colorIndex),
-    colorIndex,
-  }), [sessionId, displayName, colorIndex]);
+  // Use the matched traveler's color when the name matches, otherwise fallback to presence palette
+  const localUser: LocalUser = useMemo(() => {
+    const traveler = travelers.find((t) => t.name === displayName);
+    return {
+      sessionId,
+      displayName: displayName || 'Anonymous',
+      color: traveler?.color ?? getPresenceColor(colorIndex),
+      colorIndex,
+    };
+  }, [sessionId, displayName, colorIndex, travelers]);
 
   // --- Channel refs ---
   const cursorRef = useRef<CursorPosition | null>(null);
@@ -160,8 +164,17 @@ export function usePresence(
     };
   }, []);
 
+  // Resolve remote user colors: traveler color when name matches, otherwise presence palette
+  const resolvedRemoteUsers = useMemo(() =>
+    remoteUsers.map((u) => {
+      const traveler = travelers.find((t) => t.name === u.displayName);
+      return traveler ? { ...u, color: traveler.color } : u;
+    }),
+    [remoteUsers, travelers],
+  );
+
   return {
-    localUser, remoteUsers, remoteCursorsRef, updateCursor,
+    localUser, remoteUsers: resolvedRemoteUsers, remoteCursorsRef, updateCursor,
     setDisplayName, needsNameSelection,
   };
 }
