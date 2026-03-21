@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem, TravelEvent, EventType, Itinerary, Segment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
 import { MapPin, Calendar, Clock, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil, UserCheck, Lock, CalendarDays, Music, PartyPopper, Trophy, Link } from 'lucide-react';
@@ -1776,6 +1776,7 @@ interface EventsSectionProps {
 }
 
 function EventsSection({ cityName, travelerId, allTravelers, events, cityStartDate, cityEndDate, onUpdate, locked }: EventsSectionProps) {
+  const formRef = useRef<HTMLDivElement>(null);
   const [formMode, setFormMode] = useState<'closed' | 'adding' | 'editing'>('closed');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
@@ -1785,6 +1786,12 @@ function EventsSection({ cityName, travelerId, allTravelers, events, cityStartDa
   const [newAllDay, setNewAllDay] = useState(true);
   const [newStartTime, setNewStartTime] = useState('19:00');
   const [newEndTime, setNewEndTime] = useState('23:00');
+
+  useEffect(() => {
+    if (formMode !== 'closed' && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [formMode]);
 
   function resetForm() {
     setNewName('');
@@ -1949,7 +1956,7 @@ function EventsSection({ cityName, travelerId, allTravelers, events, cityStartDa
 
       {/* Add/Edit form */}
       {locked ? null : isFormOpen ? (
-        <div className="space-y-2 bg-slate-900 border border-slate-700 rounded-lg p-3">
+        <div ref={formRef} className="space-y-2 bg-slate-900 border border-slate-700 rounded-lg p-3">
           {formMode === 'editing' && (
             <p className="text-[10px] font-medium text-purple-400 uppercase tracking-wider">Editing event</p>
           )}
