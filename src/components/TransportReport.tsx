@@ -91,7 +91,14 @@ export function TransportReport() {
     ? itinerary.travelers.find(t => t.id === highlightedTravelerId)
     : null;
 
-  if (transportData.length === 0) return null;
+  if (transportData.length === 0) {
+    return (
+      <div className="bg-slate-900 px-6 py-8 text-center">
+        <p className="text-sm text-slate-500">No transport segments added yet.</p>
+        <p className="text-xs text-slate-500 mt-1">Transport segments are auto-generated between consecutive cities.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-900 px-6 py-4 max-h-[45vh] overflow-y-auto">
