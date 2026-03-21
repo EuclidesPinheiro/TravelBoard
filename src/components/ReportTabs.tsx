@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { MapPin, Navigation, Star, DollarSign, ListChecks } from 'lucide-react';
+import { MapPin, Navigation, Star, DollarSign, ListChecks, CalendarDays } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { CityReport } from './CityReport';
 import { TransportReport } from './TransportReport';
 import { AttractionsReport } from './AttractionsReport';
 import { BudgetReport } from './BudgetReport';
 import { ChecklistReport } from './ChecklistReport';
+import { EventsReport } from './EventsReport';
 
-type Tab = 'city' | 'transport' | 'attractions' | 'budget' | 'checklists';
+type Tab = 'city' | 'transport' | 'attractions' | 'budget' | 'checklists' | 'events';
 
 export function ReportTabs() {
   const [activeTab, setActiveTab] = useState<Tab | null>(null);
@@ -18,6 +19,7 @@ export function ReportTabs() {
     { key: 'attractions', label: 'Attractions', icon: Star },
     { key: 'budget', label: 'Budget', icon: DollarSign },
     { key: 'checklists', label: 'Checklists', icon: ListChecks },
+    { key: 'events', label: 'Events', icon: CalendarDays },
   ];
 
   const isOpen = activeTab !== null;
@@ -62,6 +64,7 @@ export function ReportTabs() {
           {activeTab === 'attractions' && <AttractionsReport />}
           {activeTab === 'budget' && <BudgetReport />}
           {activeTab === 'checklists' && <ChecklistReport />}
+          {activeTab === 'events' && <EventsReport />}
         </div>
       </div>
     </div>

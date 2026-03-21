@@ -9,6 +9,7 @@ interface ItineraryPayload {
   travelers: unknown[];
   attractions?: Record<string, unknown[]>;
   checklists?: Record<string, unknown[]>;
+  events?: Record<string, unknown[]>;
 }
 
 interface CreateBoardRequest {
@@ -57,6 +58,7 @@ Deno.serve(async (request) => {
       travelers: version.travelers,
       attractions: version.attractions ?? {},
       checklists: version.checklists ?? {},
+      events: version.events ?? {},
     }));
 
     const { error: versionsError } = await supabase
@@ -141,6 +143,7 @@ function validateVersion(input: unknown, index: number): ItineraryPayload {
     travelers: version.travelers,
     attractions: isPlainObject(version.attractions) ? version.attractions : {},
     checklists: isPlainObject(version.checklists) ? version.checklists : {},
+    events: isPlainObject(version.events) ? version.events : {},
   };
 }
 

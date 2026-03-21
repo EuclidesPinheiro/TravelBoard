@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem, Itinerary, Segment } from '../../types';
+import { Traveler, CitySegment, TransportSegment, Stay, Attraction, AttractionCategory, ChecklistItem, TravelEvent, EventType, Itinerary, Segment } from '../../types';
 import { useItinerary } from '../../store/ItineraryContext';
-import { MapPin, Calendar, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil, UserCheck, Lock } from 'lucide-react';
+import { MapPin, Calendar, Clock, Users, PlaneLanding, PlaneTakeoff, BedDouble, Plus, Trash2, ExternalLink, Star, ThumbsUp, DollarSign, ListChecks, Square, CheckSquare, Pencil, UserCheck, Lock, CalendarDays, Music, PartyPopper, Trophy, Link } from 'lucide-react';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../../utils/cn';
@@ -271,6 +271,7 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
       (prev, currentSegment, updatedSegment) => ({
         attractions: renameRecordKey(prev.attractions, currentSegment.cityName, updatedSegment.cityName),
         checklists: renameRecordKey(prev.checklists, currentSegment.cityName, updatedSegment.cityName),
+        events: renameRecordKey(prev.events, currentSegment.cityName, updatedSegment.cityName),
       }),
     );
   }
@@ -462,6 +463,26 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
             checklists: {
               ...prev.checklists,
               [segment.cityName]: newItems,
+            },
+          }));
+        }}
+      />
+
+      {/* Events */}
+      <EventsSection
+        cityName={segment.cityName}
+        travelerId={traveler.id}
+        allTravelers={itinerary.travelers}
+        events={itinerary.events?.[segment.cityName] ?? []}
+        cityStartDate={segment.startDate}
+        cityEndDate={segment.endDate}
+        locked={locked}
+        onUpdate={(newEvents) => {
+          setItinerary(prev => ({
+            ...prev,
+            events: {
+              ...prev.events,
+              [segment.cityName]: newEvents,
             },
           }));
         }}
@@ -1728,6 +1749,331 @@ function ChecklistSection({ cityName, travelerId, allTravelers, items, onUpdate,
         >
           <Plus size={14} />
           Add Task
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Events Section ────────────────────────────────────────────
+
+const EVENT_TYPE_CONFIG: Record<EventType, { label: string; icon: typeof Music; color: string }> = {
+  show: { label: 'Show', icon: Music, color: 'text-purple-400' },
+  holiday: { label: 'Holiday', icon: CalendarDays, color: 'text-red-400' },
+  festival: { label: 'Festival', icon: PartyPopper, color: 'text-amber-400' },
+  sports: { label: 'Sports', icon: Trophy, color: 'text-emerald-400' },
+};
+
+interface EventsSectionProps {
+  cityName: string;
+  travelerId: string;
+  allTravelers: Traveler[];
+  events: TravelEvent[];
+  cityStartDate: string;
+  cityEndDate: string;
+  onUpdate: (newEvents: TravelEvent[]) => void;
+  locked?: boolean;
+}
+
+function EventsSection({ cityName, travelerId, allTravelers, events, cityStartDate, cityEndDate, onUpdate, locked }: EventsSectionProps) {
+  const [formMode, setFormMode] = useState<'closed' | 'adding' | 'editing'>('closed');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newName, setNewName] = useState('');
+  const [newLink, setNewLink] = useState('');
+  const [newEventType, setNewEventType] = useState<EventType>('show');
+  const [newDate, setNewDate] = useState(cityStartDate);
+  const [newAllDay, setNewAllDay] = useState(true);
+  const [newStartTime, setNewStartTime] = useState('19:00');
+  const [newEndTime, setNewEndTime] = useState('23:00');
+
+  function resetForm() {
+    setNewName('');
+    setNewLink('');
+    setNewEventType('show');
+    setNewDate(cityStartDate);
+    setNewAllDay(true);
+    setNewStartTime('19:00');
+    setNewEndTime('23:00');
+    setFormMode('closed');
+    setEditingId(null);
+  }
+
+  function openEdit(event: TravelEvent) {
+    setNewName(event.name);
+    setNewLink(event.link ?? '');
+    setNewEventType(event.eventType);
+    setNewDate(event.date);
+    setNewAllDay(event.allDay);
+    setNewStartTime(event.startTime ?? '19:00');
+    setNewEndTime(event.endTime ?? '23:00');
+    setEditingId(event.id);
+    setFormMode('editing');
+  }
+
+  function clampDate(date: string): string {
+    if (date < cityStartDate) return cityStartDate;
+    if (date > cityEndDate) return cityEndDate;
+    return date;
+  }
+
+  function handleSubmit() {
+    if (!newName.trim() || !newDate) return;
+    const clampedDate = clampDate(newDate);
+    const eventData: TravelEvent = {
+      id: editingId ?? uuidv4(),
+      name: newName.trim(),
+      link: newLink.trim() || undefined,
+      eventType: newEventType,
+      date: clampedDate,
+      allDay: newAllDay,
+      startTime: newAllDay ? undefined : newStartTime,
+      endTime: newAllDay ? undefined : newEndTime,
+      addedBy: formMode === 'editing'
+        ? (events.find(e => e.id === editingId)?.addedBy ?? travelerId)
+        : travelerId,
+    };
+
+    if (formMode === 'editing') {
+      onUpdate(events.map(e => e.id === editingId ? eventData : e));
+      resetForm();
+    } else {
+      onUpdate([...events, eventData]);
+      resetForm();
+      setFormMode('adding');
+    }
+  }
+
+  function removeEvent(eventId: string) {
+    onUpdate(events.filter(e => e.id !== eventId));
+    if (editingId === eventId) resetForm();
+  }
+
+  function getTravelerById(id: string) {
+    return allTravelers.find(t => t.id === id);
+  }
+
+  const sortedEvents = [...events].sort((a, b) => {
+    const dateCmp = a.date.localeCompare(b.date);
+    if (dateCmp !== 0) return dateCmp;
+    if (a.allDay && !b.allDay) return -1;
+    if (!a.allDay && b.allDay) return 1;
+    return (a.startTime ?? '').localeCompare(b.startTime ?? '');
+  });
+
+  const isFormOpen = formMode !== 'closed';
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold text-slate-50 flex items-center gap-2">
+        <CalendarDays size={16} className="text-purple-400" />
+        Events
+        {events.length > 0 && (
+          <span className="text-[10px] font-medium text-slate-500 ml-auto">
+            {events.length}
+          </span>
+        )}
+      </h4>
+
+      {/* Event list */}
+      {sortedEvents.length > 0 && (
+        <div className="space-y-1.5">
+          {sortedEvents.map(event => {
+            const config = EVENT_TYPE_CONFIG[event.eventType];
+            const Icon = config.icon;
+            const addedByTraveler = getTravelerById(event.addedBy);
+            const isOwner = event.addedBy === travelerId;
+            const isBeingEdited = editingId === event.id;
+
+            return (
+              <div
+                key={event.id}
+                onClick={() => { if (!locked && !isBeingEdited) openEdit(event); }}
+                className={cn(
+                  "flex items-start gap-2 p-2 rounded-lg transition-colors group",
+                  isBeingEdited
+                    ? "bg-purple-900/20 ring-1 ring-purple-700"
+                    : locked ? "hover:bg-slate-900" : "hover:bg-slate-900 cursor-pointer"
+                )}
+              >
+                <Icon size={14} className={cn("mt-0.5 shrink-0", config.color)} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-slate-600 truncate">{event.name}</span>
+                    {event.link && (
+                      <a
+                        href={event.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 text-slate-500 hover:text-indigo-400"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <Link size={11} />
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-slate-500">
+                      {format(parseISO(event.date), 'dd/MM')}
+                      {event.allDay ? ' · All day' : ` · ${event.startTime}–${event.endTime}`}
+                    </span>
+                    <span className={cn("text-[10px] font-medium", config.color)}>
+                      {config.label}
+                    </span>
+                  </div>
+                  {addedByTraveler && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <div
+                        className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[6px] text-white font-bold"
+                        style={{ backgroundColor: addedByTraveler.color }}
+                      >
+                        {addedByTraveler.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <span className="text-[10px] text-slate-500">by {addedByTraveler.name}</span>
+                    </div>
+                  )}
+                </div>
+                {isOwner && !locked && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeEvent(event.id); }}
+                    className="p-0.5 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                    title="Remove"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add/Edit form */}
+      {locked ? null : isFormOpen ? (
+        <div className="space-y-2 bg-slate-900 border border-slate-700 rounded-lg p-3">
+          {formMode === 'editing' && (
+            <p className="text-[10px] font-medium text-purple-400 uppercase tracking-wider">Editing event</p>
+          )}
+
+          {/* Name */}
+          <input
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            maxLength={100}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleSubmit();
+              if (e.key === 'Escape') resetForm();
+            }}
+            placeholder="Event name..."
+            className="w-full text-sm bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400 placeholder-slate-400"
+            autoFocus
+          />
+
+          {/* Link */}
+          <input
+            type="url"
+            value={newLink}
+            onChange={e => setNewLink(e.target.value)}
+            placeholder="Link (optional)"
+            className="w-full text-sm bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400 placeholder-slate-400"
+          />
+
+          {/* Event type grid */}
+          <div className="grid grid-cols-4 gap-1">
+            {(Object.entries(EVENT_TYPE_CONFIG) as [EventType, typeof EVENT_TYPE_CONFIG[EventType]][]).map(([type, config]) => {
+              const TypeIcon = config.icon;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setNewEventType(type)}
+                  className={cn(
+                    "flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-md text-[10px] font-medium transition-colors",
+                    newEventType === type
+                      ? "bg-purple-900/50 text-purple-300 ring-1 ring-purple-700"
+                      : "bg-slate-950 text-slate-500 hover:text-slate-600"
+                  )}
+                >
+                  <TypeIcon size={14} />
+                  {config.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Date */}
+          <input
+            type="date"
+            value={newDate}
+            onChange={e => setNewDate(e.target.value)}
+            min={cityStartDate}
+            max={cityEndDate}
+            className="w-full text-sm bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400 [color-scheme:dark]"
+          />
+
+          {/* All day toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setNewAllDay(!newAllDay)}
+              className="shrink-0 text-slate-500 hover:text-purple-400 transition-colors"
+            >
+              {newAllDay ? <CheckSquare size={16} className="text-purple-400" /> : <Square size={16} />}
+            </button>
+            <span className="text-xs text-slate-600">All day</span>
+          </div>
+
+          {/* Time inputs (when not all day) */}
+          {!newAllDay && (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-[10px] text-slate-500 mb-0.5 block">Start</label>
+                <input
+                  type="time"
+                  value={newStartTime}
+                  onChange={e => setNewStartTime(e.target.value)}
+                  className="w-full text-sm bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400 [color-scheme:dark]"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-[10px] text-slate-500 mb-0.5 block">End</label>
+                <input
+                  type="time"
+                  value={newEndTime}
+                  onChange={e => setNewEndTime(e.target.value)}
+                  className="w-full text-sm bg-slate-950 border border-slate-700 rounded-md px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400 [color-scheme:dark]"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleSubmit}
+              disabled={!newName.trim() || !newDate}
+              className={cn(
+                "flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                newName.trim() && newDate
+                  ? "bg-purple-600 hover:bg-purple-700 text-white"
+                  : "bg-slate-800 text-slate-500 cursor-not-allowed"
+              )}
+            >
+              {formMode === 'editing' ? 'Save' : 'Add'}
+            </button>
+            <button
+              onClick={resetForm}
+              className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setFormMode('adding')}
+          className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-medium text-purple-400 bg-purple-900/20 border border-dashed border-purple-800 rounded-lg hover:bg-purple-900/30 hover:border-purple-300 transition-colors"
+        >
+          <Plus size={14} />
+          Add Event
         </button>
       )}
     </div>

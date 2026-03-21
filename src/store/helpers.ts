@@ -1,4 +1,4 @@
-import { Itinerary, CitySegment, Segment, TransportSegment, Traveler, Attraction, ChecklistItem } from '../types';
+import { Itinerary, CitySegment, Segment, TransportSegment, Traveler, Attraction, ChecklistItem, TravelEvent } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
 export const MAX_UNDO = 50;
@@ -53,7 +53,24 @@ export function cleanupOrphanedCityData(it: Itinerary): Itinerary {
     }
   }
 
-  return changed ? { ...it, attractions, checklists } : it;
+  let events = it.events;
+  if (events) {
+    let evChanged = false;
+    for (const city of Object.keys(events)) {
+      if (!activeCities.has(city)) {
+        evChanged = true;
+        break;
+      }
+    }
+    if (evChanged) {
+      events = Object.fromEntries(
+        Object.entries(events).filter(([city]) => activeCities.has(city)),
+      );
+      changed = true;
+    }
+  }
+
+  return changed ? { ...it, attractions, checklists, events } : it;
 }
 
 export function syncTravelSegments(it: Itinerary): Itinerary {
@@ -158,6 +175,7 @@ export interface DbRow {
   travelers: Traveler[];
   attractions: Record<string, Attraction[]>;
   checklists: Record<string, ChecklistItem[]>;
+  events: Record<string, TravelEvent[]>;
   session_id?: string;
   updated_at?: string;
   yjs_state?: string | null;
@@ -172,6 +190,7 @@ export function rowToItinerary(row: DbRow): Itinerary {
     travelers: row.travelers || [],
     attractions: row.attractions || {},
     checklists: row.checklists || {},
+    events: row.events || {},
   };
 }
 
@@ -191,6 +210,7 @@ export function itineraryToRow(
     travelers: itinerary.travelers,
     attractions: itinerary.attractions || {},
     checklists: itinerary.checklists || {},
+    events: itinerary.events || {},
     session_id: sessionId,
     updated_at: new Date().toISOString(),
   };
