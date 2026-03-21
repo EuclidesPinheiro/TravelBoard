@@ -67,6 +67,7 @@ function getBoardJwtSecret(): Uint8Array {
   const rawSecret =
     Deno.env.get('TRAVELBOARD_JWT_SECRET') ??
     Deno.env.get('SUPABASE_JWT_SECRET') ??
+    Deno.env.get('SUPABASE_INTERNAL_JWT_SECRET') ??
     Deno.env.get('JWT_SECRET');
 
   if (!rawSecret) {

@@ -74,6 +74,20 @@ export interface ChecklistItem {
   completedBy: string[]; // traveler IDs who marked it done
 }
 
+export type EventType = 'show' | 'holiday' | 'festival' | 'sports';
+
+export interface TravelEvent {
+  id: string;
+  name: string;
+  link?: string;
+  eventType: EventType;
+  date: string; // YYYY-MM-DD
+  allDay: boolean;
+  startTime?: string; // HH:mm (when allDay is false)
+  endTime?: string; // HH:mm (when allDay is false)
+  addedBy: string; // traveler ID
+}
+
 export interface Itinerary {
   id: string;
   name: string;
@@ -82,11 +96,13 @@ export interface Itinerary {
   travelers: Traveler[];
   attractions?: Record<string, Attraction[]>; // keyed by cityName
   checklists?: Record<string, ChecklistItem[]>; // keyed by cityName
+  events?: Record<string, TravelEvent[]>; // keyed by cityName
 }
 
 export type SelectionItem =
   | { type: 'traveler'; travelerId: string }
   | { type: 'city'; travelerId: string; segmentId: string }
-  | { type: 'transport'; travelerId: string; segmentId: string };
+  | { type: 'transport'; travelerId: string; segmentId: string }
+  | { type: 'dayEvents'; date: string }; // YYYY-MM-DD
 
 export type SelectionType = SelectionItem[];
