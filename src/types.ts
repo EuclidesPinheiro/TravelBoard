@@ -102,6 +102,7 @@ export interface Itinerary {
 export type SelectionItem =
   | { type: 'traveler'; travelerId: string }
   | { type: 'city'; travelerId: string; segmentId: string }
-  | { type: 'transport'; travelerId: string; segmentId: string };
+  | { type: 'transport'; travelerId: string; segmentId: string }
+  | { type: 'dayEvents'; date: string }; // YYYY-MM-DD
 
 export type SelectionType = SelectionItem[];

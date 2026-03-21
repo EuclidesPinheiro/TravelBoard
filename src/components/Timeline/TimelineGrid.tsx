@@ -13,7 +13,8 @@ import { RemoteCursors } from './RemoteCursors';
 function selectionItemsMatch(a: SelectionItem, b: SelectionItem): boolean {
   if (a.type !== b.type) return false;
   if (a.type === 'traveler') return b.type === 'traveler' && a.travelerId === b.travelerId;
-  return b.type !== 'traveler' && a.travelerId === b.travelerId && a.segmentId === b.segmentId;
+  if (a.type === 'dayEvents') return b.type === 'dayEvents' && a.date === b.date;
+  return b.type !== 'traveler' && b.type !== 'dayEvents' && a.travelerId === b.travelerId && a.segmentId === b.segmentId;
 }
 
 const ROW_HEIGHT = 72;
@@ -435,10 +436,15 @@ export function TimelineGrid() {
                     style={{ width: zoomLevel }}
                     onMouseEnter={() => setHoveredDay(i)}
                     onMouseLeave={() => setHoveredDay(null)}
+                    onClick={() => {
+                      if (eventCount > 0) {
+                        setSelection([{ type: 'dayEvents', date: dateKey }]);
+                      }
+                    }}
                   >
                     {eventCount > 0 && (
                       <span
-                        className="absolute top-1 right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] rounded-full text-[9px] font-bold text-white bg-purple-600 px-1 leading-none"
+                        className="absolute top-1 right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] rounded-full text-[9px] font-bold text-white bg-purple-600 px-1 leading-none cursor-pointer"
                         title={`${eventCount} event${eventCount > 1 ? 's' : ''}`}
                       >
                         {eventCount}
