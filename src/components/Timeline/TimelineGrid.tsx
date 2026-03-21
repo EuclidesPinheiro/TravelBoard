@@ -1,13 +1,13 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { useItinerary, ZOOM_MIN, ZOOM_MAX, ZOOM_WHEEL_STEP } from '../../store/ItineraryContext';
 import { getTimelineDays, formatDate } from '../../utils/dateUtils';
-import { isWeekend, isToday } from 'date-fns';
+import { isWeekend, isToday, format } from 'date-fns';
 import { TravelerRow } from './TravelerRow';
 import { AddTravelerModal } from '../Modals/AddTravelerModal';
 import { cn } from '../../utils/cn';
 import { Plus, CalendarCog } from 'lucide-react';
 import { EditDatesModal } from '../Modals/EditDatesModal';
-import { SelectionItem } from '../../types';
+import { SelectionItem, TravelEvent } from '../../types';
 import { RemoteCursors } from './RemoteCursors';
 
 function selectionItemsMatch(a: SelectionItem, b: SelectionItem): boolean {
@@ -35,6 +35,19 @@ export function TimelineGrid() {
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
   const [isAddTravelerOpen, setIsAddTravelerOpen] = useState(false);
   const [isEditDatesOpen, setIsEditDatesOpen] = useState(false);
+
+  // Count events per date across all cities
+  const eventCountsByDate = (() => {
+    const counts = new Map<string, number>();
+    if (itinerary.events) {
+      for (const cityEvents of Object.values(itinerary.events) as TravelEvent[][]) {
+        for (const ev of cityEvents) {
+          counts.set(ev.date, (counts.get(ev.date) ?? 0) + 1);
+        }
+      }
+    }
+    return counts;
+  })();
 
   // --- Marquee Selection ---
   const [marquee, setMarquee] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
@@ -408,11 +421,13 @@ export function TimelineGrid() {
               {days.map((day, i) => {
                 const weekend = isWeekend(day);
                 const today = isToday(day);
+                const dateKey = format(day, 'yyyy-MM-dd');
+                const eventCount = eventCountsByDate.get(dateKey) ?? 0;
                 return (
                   <div
                     key={i}
                     className={cn(
-                      "shrink-0 border-r border-slate-600 flex flex-col items-center justify-center py-2 transition-colors cursor-pointer",
+                      "shrink-0 border-r border-slate-600 flex flex-col items-center justify-center py-2 transition-colors cursor-pointer relative",
                       weekend && "bg-slate-900",
                       today && "bg-blue-50/50",
                       hoveredDay === i && "bg-slate-800"
@@ -421,6 +436,14 @@ export function TimelineGrid() {
                     onMouseEnter={() => setHoveredDay(i)}
                     onMouseLeave={() => setHoveredDay(null)}
                   >
+                    {eventCount > 0 && (
+                      <span
+                        className="absolute top-1 right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] rounded-full text-[9px] font-bold text-white bg-purple-600 px-1 leading-none"
+                        title={`${eventCount} event${eventCount > 1 ? 's' : ''}`}
+                      >
+                        {eventCount}
+                      </span>
+                    )}
                     <span className={cn("text-[10px] font-medium uppercase tracking-wider", today ? "text-blue-600" : "text-slate-500")}>
                       {formatDate(day, 'EEE')}
                     </span>
