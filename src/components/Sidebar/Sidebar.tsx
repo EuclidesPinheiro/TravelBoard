@@ -12,12 +12,12 @@ export function Sidebar() {
 
   if (selection.length > 1) {
     return (
-      <div data-sidebar className="w-80 shrink-0 bg-slate-950 border-l border-slate-700 shadow-xl flex flex-col h-full z-30 animate-in slide-in-from-right-8 duration-200">
+      <div data-sidebar className="w-80 max-md:w-full max-md:absolute max-md:inset-0 max-md:z-50 max-md:border-l-0 shrink-0 bg-slate-950 border-l border-slate-700 shadow-xl flex flex-col h-full z-30 animate-in slide-in-from-right-8 duration-200">
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800 shrink-0">
           <h2 className="font-semibold text-slate-200">Multiple Items</h2>
           <button 
             onClick={() => setSelection([])}
-            className="p-1.5 text-slate-500 hover:text-slate-500 hover:bg-slate-800 rounded-md transition-colors"
+            className="p-1.5 max-md:p-2.5 text-slate-500 hover:text-slate-500 hover:bg-slate-800 rounded-md transition-colors"
           >
             <X size={18} />
           </button>
@@ -34,12 +34,12 @@ export function Sidebar() {
   // dayEvents selection doesn't need a traveler
   if (singleSelection.type === 'dayEvents') {
     return (
-      <div data-sidebar className="w-80 shrink-0 bg-slate-950 border-l border-slate-700 shadow-xl flex flex-col h-full z-30 animate-in slide-in-from-right-8 duration-200">
+      <div data-sidebar className="w-80 max-md:w-full max-md:absolute max-md:inset-0 max-md:z-50 max-md:border-l-0 shrink-0 bg-slate-950 border-l border-slate-700 shadow-xl flex flex-col h-full z-30 animate-in slide-in-from-right-8 duration-200">
         <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800 shrink-0">
           <h2 className="font-semibold text-slate-200">Details</h2>
           <button
             onClick={() => setSelection([])}
-            className="p-1.5 text-slate-500 hover:text-slate-500 hover:bg-slate-800 rounded-md transition-colors"
+            className="p-1.5 max-md:p-2.5 text-slate-500 hover:text-slate-500 hover:bg-slate-800 rounded-md transition-colors"
           >
             <X size={18} />
           </button>
@@ -55,12 +55,12 @@ export function Sidebar() {
   if (!traveler) return null;
 
   return (
-    <div data-sidebar className="w-80 shrink-0 bg-slate-950 border-l border-slate-700 shadow-xl flex flex-col h-full z-30 animate-in slide-in-from-right-8 duration-200">
+    <div data-sidebar className="w-80 max-md:w-full max-md:absolute max-md:inset-0 max-md:z-50 max-md:border-l-0 shrink-0 bg-slate-950 border-l border-slate-700 shadow-xl flex flex-col h-full z-30 animate-in slide-in-from-right-8 duration-200">
       <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800 shrink-0">
         <h2 className="font-semibold text-slate-200">Details</h2>
         <button
           onClick={() => setSelection([])}
-          className="p-1.5 text-slate-500 hover:text-slate-500 hover:bg-slate-800 rounded-md transition-colors"
+          className="p-1.5 max-md:p-2.5 text-slate-500 hover:text-slate-500 hover:bg-slate-800 rounded-md transition-colors"
         >
           <X size={18} />
         </button>

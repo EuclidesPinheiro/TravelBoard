@@ -408,8 +408,8 @@ export function TimelineGrid() {
         <div className="relative inline-block min-w-full">
           {/* Header Row (Dates) */}
           <div className="sticky top-0 z-30 flex bg-slate-950 border-b border-slate-700 shadow-sm" style={{ height: HEADER_HEIGHT }}>
-            <div className="w-64 shrink-0 border-r border-slate-700 bg-slate-900 sticky left-0 z-40 flex items-center justify-between px-4 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Travelers</span>
+            <div className="w-64 max-md:w-28 shrink-0 border-r border-slate-700 bg-slate-900 sticky left-0 z-40 flex items-center justify-between px-4 max-md:px-2 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+              <span className="text-xs max-md:text-[9px] font-semibold text-slate-500 uppercase tracking-wider">Travelers</span>
               <button
                 onClick={() => setIsEditDatesOpen(true)}
                 className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
@@ -495,12 +495,12 @@ export function TimelineGrid() {
                 if (!isMarqueeActive) setIsAddTravelerOpen(true);
               }}
             >
-              <div className="w-64 shrink-0 sticky left-0 z-20 bg-slate-950 group-hover:bg-indigo-900/40/40 border-r border-slate-700 transition-colors flex items-center justify-center shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+              <div className="w-64 max-md:w-28 shrink-0 sticky left-0 z-20 bg-slate-950 group-hover:bg-indigo-900/40/40 border-r border-slate-700 transition-colors flex items-center justify-center shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
                 <div className="flex items-center gap-2 text-indigo-300 group-hover:text-indigo-400 transition-colors">
                   <div className="w-7 h-7 rounded-full bg-indigo-900/40 group-hover:bg-indigo-800/60 flex items-center justify-center transition-colors">
                     <Plus size={14} strokeWidth={2.5} />
                   </div>
-                  <span className="text-xs font-medium">Add Traveler</span>
+                  <span className="text-xs font-medium max-md:hidden">Add Traveler</span>
                 </div>
               </div>
               <div className="flex-1" style={{ minWidth: days.length * zoomLevel }} />

@@ -150,7 +150,7 @@ function AppContent() {
   useCopyPaste();
 
   return (
-    <div className="flex flex-col h-screen bg-slate-900 font-sans text-slate-50 overflow-hidden">
+    <div className="flex flex-col h-screen max-md:h-dvh bg-slate-900 font-sans text-slate-50 overflow-hidden">
       <Header />
       <div className="flex flex-1 overflow-hidden relative">
         <main className="flex-1 flex flex-col overflow-hidden">

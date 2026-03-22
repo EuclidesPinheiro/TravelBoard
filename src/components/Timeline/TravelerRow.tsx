@@ -188,7 +188,7 @@ export function TravelerRow({
         data-selection-type="traveler"
         data-traveler-id={traveler.id}
         className={cn(
-          "w-64 shrink-0 border-r border-slate-700 sticky left-0 z-20 flex items-center px-2 cursor-pointer transition-colors shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
+          "w-64 max-md:w-28 shrink-0 border-r border-slate-700 sticky left-0 z-20 flex items-center px-2 max-md:px-1 cursor-pointer transition-colors shadow-[2px_0_4px_rgba(0,0,0,0.05)]",
           isSelected ? "bg-slate-900/95" :
           isHighlighted
             ? "bg-slate-950"
@@ -202,7 +202,7 @@ export function TravelerRow({
         {/* Drag handle */}
         {!locked && (
           <div
-            className="shrink-0 flex items-center justify-center w-5 h-8 text-slate-600 hover:text-slate-500 cursor-grab active:cursor-grabbing rounded transition-colors opacity-0 group-hover:opacity-100"
+            className="shrink-0 flex items-center justify-center w-5 h-8 text-slate-600 hover:text-slate-500 cursor-grab active:cursor-grabbing rounded transition-colors opacity-0 group-hover:opacity-100 max-md:opacity-100"
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -216,7 +216,7 @@ export function TravelerRow({
         {locked && <div className="w-5 shrink-0" />}
         <div
           className={cn(
-            "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 shrink-0",
+            "w-10 h-10 max-md:w-8 max-md:h-8 rounded-full flex items-center justify-center text-white font-bold shadow-sm ring-2 shrink-0 max-md:text-xs",
             isSelected ? "ring-[3px] ring-white/90" :
             locked ? "ring-amber-400" : "ring-white"
           )}
@@ -224,18 +224,18 @@ export function TravelerRow({
         >
           {traveler.name.substring(0, 2).toUpperCase()}
         </div>
-        <div className="ml-3 truncate flex-1">
-          <div className="font-medium text-slate-50 truncate">
+        <div className="ml-3 max-md:ml-1.5 truncate flex-1">
+          <div className="font-medium max-md:text-xs text-slate-50 truncate">
             {traveler.name}
           </div>
-          <div className="text-xs text-slate-500 truncate">
+          <div className="text-xs text-slate-500 truncate max-md:hidden">
             {traveler.segments.filter((s) => s.type === "city").length} cities
           </div>
         </div>
         {/* Details button */}
         <button
           data-traveler-info
-          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-slate-800 hover:bg-indigo-800/60 text-slate-500 hover:text-indigo-400 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-slate-800 hover:bg-indigo-800/60 text-slate-500 hover:text-indigo-400 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 max-md:opacity-100"
           onClick={(e) => {
             e.stopPropagation();
             setHighlightedTravelerId(traveler.id);
@@ -265,7 +265,7 @@ export function TravelerRow({
             "absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center transition-colors",
             locked
               ? "bg-amber-900/60 text-amber-400 opacity-100"
-              : "bg-slate-800 hover:bg-slate-700 text-slate-500 hover:text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100"
+              : "bg-slate-800 hover:bg-slate-700 text-slate-500 hover:text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 max-md:opacity-100"
           )}
           onClick={toggleLock}
           title={locked ? "Unlock row" : "Lock row"}
