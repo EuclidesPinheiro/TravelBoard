@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { initialItinerary } from "../data/initialData";
 import { Itinerary } from "../types";
-import { Upload, Plus, X } from "lucide-react";
+import { Upload, Plus, X, Eye, EyeOff } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { format, parseISO } from "date-fns";
 import {
@@ -25,6 +25,7 @@ export function LandingPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const hasLocalData = localStorage.getItem("travelboard_versions") !== null;
 
@@ -186,13 +187,23 @@ export function LandingPage() {
                   <label className="block text-sm font-medium text-slate-300 mb-1">
                     Senha do Projeto
                   </label>
-                  <input
-                    type="text"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Deixe em branco para sem senha"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-500"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Deixe em branco para sem senha"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 pr-10 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-slate-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
