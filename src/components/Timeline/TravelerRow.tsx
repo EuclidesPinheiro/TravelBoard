@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { Traveler, CitySegment, TransportSegment, SelectionItem } from "../../types";
 import { useItinerary } from "../../store/ItineraryContext";
@@ -68,13 +68,17 @@ export function TravelerRow({
 
   // Track when drag ends to suppress the click that follows
   const prevIsDragging = useRef(isDragging);
-  if (prevIsDragging.current && !isDragging) {
-    wasDraggingRef.current = true;
-    setTimeout(() => {
-      wasDraggingRef.current = false;
-    }, 0);
-  }
-  prevIsDragging.current = isDragging;
+  useLayoutEffect(() => {
+    if (prevIsDragging.current && !isDragging) {
+      wasDraggingRef.current = true;
+      const timer = setTimeout(() => {
+        wasDraggingRef.current = false;
+      }, 0);
+      prevIsDragging.current = isDragging;
+      return () => clearTimeout(timer);
+    }
+    prevIsDragging.current = isDragging;
+  }, [isDragging]);
 
   // Compute which day indices are occupied by a CITY segment
   const occupiedDays = useMemo(() => {
