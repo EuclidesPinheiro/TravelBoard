@@ -31,9 +31,8 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
   const cityMinDt = arrivalTime
     ? `${arrivalDate}T${arrivalTime}`
     : `${arrivalDate}T00:00`;
-  const cityMaxDt = departureTime
-    ? `${departureDate}T${departureTime}`
-    : `${departureDate}T23:59`;
+  // Checkout is informational (max checkout time), so allow any time on departure date
+  const cityMaxDt = `${departureDate}T23:59`;
 
   const days =
     differenceInDays(parseISO(segment.endDate), parseISO(segment.startDate)) + 1;
@@ -421,7 +420,6 @@ export function CityDetails({ traveler, segmentId }: { traveler: Traveler, segme
         arrivalDate={arrivalDate}
         arrivalTime={arrivalTime}
         departureDate={departureDate}
-        departureTime={departureTime}
         cityMinDt={cityMinDt}
         cityMaxDt={cityMaxDt}
         otherTravelers={otherTravelers}
@@ -539,7 +537,6 @@ interface StaysSectionProps {
   arrivalDate: string;
   arrivalTime: string;
   departureDate: string;
-  departureTime: string;
   cityMinDt: string;
   cityMaxDt: string;
   otherTravelers: Traveler[];
@@ -550,19 +547,19 @@ interface StaysSectionProps {
   locked?: boolean;
 }
 
-function getDefaultTimes(arrDate: string, arrTime: string, depDate: string, depTime: string) {
+function getDefaultTimes(arrDate: string, arrTime: string, depDate: string) {
   let checkIn = arrTime || '14:00';
-  let checkOut = depTime || '11:00';
+  let checkOut = '11:00';
   // If same day (or overlap), ensure checkIn < checkOut
   if (arrDate >= depDate && checkIn >= checkOut) {
     checkIn = arrTime || '00:00';
-    checkOut = depTime || '23:59';
+    checkOut = '23:59';
   }
   return { checkIn, checkOut };
 }
 
-function StaysSection({ traveler, stays, arrivalDate, arrivalTime, departureDate, departureTime, cityMinDt, cityMaxDt, otherTravelers, sharedStaysFromOthers, onAdd, onRemove, onUpdate, locked }: StaysSectionProps) {
-  const defaults = getDefaultTimes(arrivalDate, arrivalTime, departureDate, departureTime);
+function StaysSection({ traveler, stays, arrivalDate, arrivalTime, departureDate, cityMinDt, cityMaxDt, otherTravelers, sharedStaysFromOthers, onAdd, onRemove, onUpdate, locked }: StaysSectionProps) {
+  const defaults = getDefaultTimes(arrivalDate, arrivalTime, departureDate);
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newLink, setNewLink] = useState('');
@@ -576,7 +573,7 @@ function StaysSection({ traveler, stays, arrivalDate, arrivalTime, departureDate
   const [newPaidParts, setNewPaidParts] = useState<Record<string, boolean>>({});
 
   function resetForm() {
-    const defs = getDefaultTimes(arrivalDate, arrivalTime, departureDate, departureTime);
+    const defs = getDefaultTimes(arrivalDate, arrivalTime, departureDate);
     setNewName('');
     setNewLink('');
     setNewCheckInDate(arrivalDate);
