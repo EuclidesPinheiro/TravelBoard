@@ -10,6 +10,7 @@ import { Header } from './components/Header';
 import { TimelineGrid } from './components/Timeline/TimelineGrid';
 import { ReportTabs } from './components/ReportTabs';
 import { Sidebar } from './components/Sidebar/Sidebar';
+import { Eye, EyeOff } from 'lucide-react';
 import {
   EdgeFunctionError,
   clearStoredBoardAccessToken,
@@ -169,6 +170,7 @@ export default function App() {
   const [inputPassword, setInputPassword] = useState('');
   const [boardAccessToken, setBoardAccessToken] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!boardId) return;
@@ -303,13 +305,23 @@ export default function App() {
           <h2 className="text-xl font-bold text-slate-50 mb-4">Projeto Protegido</h2>
           <p className="text-slate-400 mb-6 text-sm">Este roteiro requer uma senha para ser acessado.</p>
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <input
-              type="password"
-              value={inputPassword}
-              onChange={(e) => setInputPassword(e.target.value)}
-              placeholder="Digite a senha"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={inputPassword}
+                onChange={(e) => setInputPassword(e.target.value)}
+                placeholder="Digite a senha"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 pr-10 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             {error && <p className="text-red-400 text-sm text-left">{error}</p>}
             <button
               type="submit"
