@@ -31,7 +31,7 @@ export function ReportTabs() {
   return (
     <div className="border-t border-slate-700 bg-slate-950 shrink-0">
       {/* Tabs — always visible */}
-      <div className="flex px-6 gap-1 py-1.5">
+      <div className="flex px-6 max-md:px-2 gap-1 py-1.5 max-md:overflow-x-auto scrollbar-none">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -40,14 +40,14 @@ export function ReportTabs() {
               key={tab.key}
               onClick={() => handleTabClick(tab.key)}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors",
+                "flex items-center gap-1.5 px-4 max-md:px-2.5 py-1.5 max-md:py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors whitespace-nowrap",
                 isActive
                   ? "bg-indigo-900/40 text-indigo-300 ring-1 ring-indigo-800"
                   : "text-slate-500 hover:text-slate-500 hover:bg-slate-800"
               )}
             >
               <Icon size={13} />
-              {tab.label}
+              <span className="max-md:hidden">{tab.label}</span>
             </button>
           );
         })}
