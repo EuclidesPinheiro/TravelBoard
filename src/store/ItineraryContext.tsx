@@ -90,7 +90,7 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
   const presenceSupabase = useMemo(() => createBoardSupabaseClient(accessToken), [accessToken]);
 
   // --- Composed Hooks ---
-  const { loading, error, supabase } = useSupabaseSync(boardId, accessToken, store, doc, sessionId);
+  const { loading, error } = useSupabaseSync(boardId, accessToken, store, doc, sessionId);
   const { pushUndo, undo: undoRaw, redo: redoRaw, canUndo, canRedo, skipSnapshotRef } = useUndoRedo(store, safeIndex);
   const {
     localUser, remoteUsers, remoteCursorsRef, updateCursor, setDisplayName, needsNameSelection,
@@ -178,15 +178,13 @@ export function ItineraryProvider({ children, boardId, accessToken }: ItineraryP
     setSelection([]);
   }, [itinerary, store, safeIndex, pushUndo]);
 
-  const deleteVersion = useCallback(async (index: number) => {
+  const deleteVersion = useCallback((index: number) => {
     if (store.versions.length <= 1) return;
-    const deletedId = (store.versions[index] as Itinerary).id;
     pushUndo({ versions: JSON.parse(JSON.stringify(store.versions)), activeVersionIndex: safeIndex });
     store.versions.splice(index, 1);
     if (activeVersionIndex >= index && activeVersionIndex > 0) setActiveVersionIndex(prev => prev - 1);
     setSelection([]);
-    await supabase.from('itinerary_versions').delete().eq('id', deletedId);
-  }, [store, safeIndex, activeVersionIndex, pushUndo, supabase]);
+  }, [store, safeIndex, activeVersionIndex, pushUndo]);
 
   // --- Render ---
   if (loading) return (

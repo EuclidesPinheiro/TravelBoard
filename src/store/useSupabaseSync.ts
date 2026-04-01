@@ -1,8 +1,7 @@
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Itinerary } from '../types';
-import { createBoardSupabaseClient } from '../lib/supabase';
-import { DbRow, itineraryToRow, rowToItinerary, SYNC_DEBOUNCE_MS, SyncedStore } from './helpers';
+import { createBoardSupabaseClient, invokeBoardFunction } from '../lib/supabase';
+import { rowToItinerary, SYNC_DEBOUNCE_MS, SyncedStore } from './helpers';
 import * as Y from 'yjs';
 import base64js from 'base64-js';
 
@@ -11,8 +10,6 @@ const YJS_SYNC_REQUEST_EVENT = 'yjs-sync-request';
 const YJS_SYNC_RESPONSE_EVENT = 'yjs-sync-response';
 const SYNC_RETRY_MS = 5_000;
 const MAX_SYNC_RETRY_MS = 30_000;
-const ANTI_ENTROPY_INTERVAL_MS = 10_000;
-const UPSERT_BATCH_SIZE = 1;
 
 interface YjsUpdatePayload {
   sessionId: string;
@@ -38,22 +35,6 @@ function decodeBinary(value: string): Uint8Array {
   return base64js.toByteArray(value);
 }
 
-async function upsertRowsInBatches(
-  supabase: SupabaseClient,
-  rows: DbRow[],
-) {
-  for (let i = 0; i < rows.length; i += UPSERT_BATCH_SIZE) {
-    const batch = rows.slice(i, i + UPSERT_BATCH_SIZE);
-    const { error } = await supabase
-      .from('itinerary_versions')
-      .upsert(batch, { onConflict: 'id' });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-  }
-}
-
 export function useSupabaseSync(
   boardId: string,
   accessToken: string,
@@ -72,91 +53,107 @@ export function useSupabaseSync(
   const channelRef = useRef<ReturnType<SupabaseClient['channel']> | null>(null);
   const subscribedRef = useRef(false);
   const pendingUpdateRef = useRef<Uint8Array | null>(null);
-  const pendingSyncRevisionRef = useRef(0);
-  const persistedSyncRevisionRef = useRef(0);
   const syncInFlightRef = useRef(false);
   const syncRetryDelayRef = useRef(SYNC_RETRY_MS);
   const needsSnapshotBootstrapRef = useRef(false);
-  const resyncInFlightRef = useRef<Promise<void> | null>(null);
   const providerOriginRef = useRef({ source: 'supabase-yjs-provider' });
   const pendingBroadcastRef = useRef<Uint8Array | null>(null);
   const broadcastTimeoutRef = useRef<number | null>(null);
+  const localRevisionRef = useRef(0);
+  const pendingDiffRef = useRef<Uint8Array | null>(null);
 
+  // ---------------------------------------------------------------------------
+  // Persist accumulated Yjs diff to board_documents via edge function
+  // ---------------------------------------------------------------------------
   const syncToSupabase = useCallback(async () => {
     if (syncInFlightRef.current) return;
 
-    const targetRevision = pendingSyncRevisionRef.current;
-    if (targetRevision === persistedSyncRevisionRef.current) return;
-
-    const current = JSON.parse(JSON.stringify(store.versions)) as Itinerary[];
-    if (current.length === 0) return;
+    const diff = pendingDiffRef.current;
+    if (!diff) return;
 
     syncInFlightRef.current = true;
+    pendingDiffRef.current = null;
+
     try {
-      const yjsState = encodeBinary(Y.encodeStateAsUpdate(doc));
-
-      const rows: DbRow[] = current.map((v, i) => {
-        const row = itineraryToRow(v, boardId, i, sessionId);
-        if (i === 0) row.yjs_state = yjsState;
-        return row;
-      });
-
-      await upsertRowsInBatches(supabase, rows);
-      persistedSyncRevisionRef.current = targetRevision;
+      const result = await invokeBoardFunction<{ revision: number }>(
+        'apply-board-update',
+        accessToken,
+        { boardId, update: encodeBinary(diff) },
+      );
+      localRevisionRef.current = result.revision;
       syncRetryDelayRef.current = SYNC_RETRY_MS;
     } catch (e) {
-      console.error('Failed to encode/sync Yjs state:', e);
+      console.error('Failed to sync to Supabase:', e);
+      // Merge failed diff back with any new diffs that arrived during the attempt
+      pendingDiffRef.current = pendingDiffRef.current
+        ? Y.mergeUpdates([diff, pendingDiffRef.current])
+        : diff;
+
+      const retryDelay = syncRetryDelayRef.current;
+      syncRetryDelayRef.current = Math.min(retryDelay * 2, MAX_SYNC_RETRY_MS);
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = window.setTimeout(() => {
+        void syncToSupabase();
+      }, retryDelay);
     } finally {
       syncInFlightRef.current = false;
 
-      if (pendingSyncRevisionRef.current > targetRevision) {
+      // If new diffs accumulated while we were syncing, schedule another round
+      if (pendingDiffRef.current) {
         if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
         syncTimeoutRef.current = window.setTimeout(() => {
           void syncToSupabase();
         }, SYNC_DEBOUNCE_MS);
-      } else if (persistedSyncRevisionRef.current < pendingSyncRevisionRef.current) {
-        const retryDelay = syncRetryDelayRef.current;
-        syncRetryDelayRef.current = Math.min(syncRetryDelayRef.current * 2, MAX_SYNC_RETRY_MS);
-        if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = window.setTimeout(() => {
-          void syncToSupabase();
-        }, retryDelay);
       }
     }
-  }, [boardId, supabase, doc, store]);
+  }, [accessToken, boardId]);
 
   const scheduleSyncToSupabase = useCallback(() => {
     if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = window.setTimeout(() => {
-      syncToSupabase();
+      void syncToSupabase();
     }, SYNC_DEBOUNCE_MS);
   }, [syncToSupabase]);
 
   const markDirtyAndScheduleSync = useCallback(() => {
-    pendingSyncRevisionRef.current += 1;
     scheduleSyncToSupabase();
   }, [scheduleSyncToSupabase]);
 
+  // ---------------------------------------------------------------------------
+  // Load: board_documents first, fallback to legacy itinerary_versions
+  // ---------------------------------------------------------------------------
   const loadFromSupabase = useCallback(async (mode: 'initial' | 'resync') => {
+    // Try the new board_documents table first
+    const { data: docData, error: docError } = await supabase
+      .from('board_documents')
+      .select('yjs_state, revision')
+      .eq('board_id', boardId)
+      .maybeSingle();
+
+    if (!docError && docData?.yjs_state) {
+      if (mode === 'resync' && docData.revision <= localRevisionRef.current) return;
+      Y.applyUpdate(doc, decodeBinary(docData.yjs_state), providerOriginRef.current);
+      localRevisionRef.current = docData.revision;
+      return;
+    }
+
+    // Fallback to itinerary_versions (legacy boards / first-time migration)
     const { data, error: fetchError } = await supabase
       .from('itinerary_versions')
       .select('*')
       .eq('board_id', boardId)
       .order('version_index', { ascending: true });
 
-    if (fetchError) {
-      throw new Error(fetchError.message);
-    }
+    if (fetchError) throw new Error(fetchError.message);
     if (!data || data.length === 0) {
-      if (mode === 'initial') {
-        throw new Error('Board not found');
-      }
+      if (mode === 'initial') throw new Error('Board not found');
       return;
     }
 
     const firstRow = data[0];
     if (firstRow.yjs_state) {
       Y.applyUpdate(doc, decodeBinary(firstRow.yjs_state), providerOriginRef.current);
+      needsSnapshotBootstrapRef.current = true;
       return;
     }
 
@@ -167,6 +164,9 @@ export function useSupabaseSync(
     }
   }, [boardId, doc, store, supabase]);
 
+  // ---------------------------------------------------------------------------
+  // Peer sync helpers (unchanged — broadcast is still the real-time channel)
+  // ---------------------------------------------------------------------------
   const requestPeerSync = useCallback(() => {
     const channel = channelRef.current;
     if (!channel || !subscribedRef.current) return;
@@ -219,35 +219,25 @@ export function useSupabaseSync(
 
   const flushPendingUpdates = useCallback(() => {
     if (!pendingUpdateRef.current) return;
-
     const pendingUpdate = pendingUpdateRef.current;
     pendingUpdateRef.current = null;
     sendDocumentUpdate(pendingUpdate);
   }, [sendDocumentUpdate]);
 
+  // ---------------------------------------------------------------------------
+  // Revision-gated refresh (replaces 10s polling)
+  // ---------------------------------------------------------------------------
   const refreshFromSupabase = useCallback(async () => {
-    if (resyncInFlightRef.current) {
-      await resyncInFlightRef.current;
-      return;
+    try {
+      await loadFromSupabase('resync');
+    } catch (e) {
+      console.error('Failed to refresh from Supabase:', e);
     }
-
-    const task = (async () => {
-      try {
-        await loadFromSupabase('resync');
-      } catch (e) {
-        console.error('Failed to refresh Yjs state from Supabase:', e);
-      }
-    })();
-
-    resyncInFlightRef.current = task;
-    await task.finally(() => {
-      if (resyncInFlightRef.current === task) {
-        resyncInFlightRef.current = null;
-      }
-    });
   }, [loadFromSupabase]);
 
+  // ---------------------------------------------------------------------------
   // Initial data load
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -265,13 +255,18 @@ export function useSupabaseSync(
     return () => { cancelled = true; };
   }, [loadFromSupabase]);
 
+  // Bootstrap: migrate legacy data → board_documents on first sync
   useEffect(() => {
     if (loading || !needsSnapshotBootstrapRef.current) return;
     needsSnapshotBootstrapRef.current = false;
+    // Send full Yjs state as the initial "diff" to seed board_documents
+    pendingDiffRef.current = Y.encodeStateAsUpdate(doc);
     markDirtyAndScheduleSync();
-  }, [loading, markDirtyAndScheduleSync]);
+  }, [loading, markDirtyAndScheduleSync, doc]);
 
-  // Realtime broadcast
+  // ---------------------------------------------------------------------------
+  // Realtime: broadcast (peer sync) + postgres_changes (revision notifications)
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (loading) return;
 
@@ -281,12 +276,12 @@ export function useSupabaseSync(
     channelRef.current = channel;
 
     channel
+      // --- Peer Yjs updates via broadcast ---
       .on('broadcast', { event: YJS_UPDATE_EVENT }, ({ payload }) => {
         const nextPayload = payload as YjsUpdatePayload;
         if (!nextPayload || nextPayload.sessionId === sessionId) return;
-
         Y.applyUpdate(doc, decodeBinary(nextPayload.update), providerOriginRef.current);
-        markDirtyAndScheduleSync();
+        // The author persists; receivers do NOT re-write to DB.
       })
       .on('broadcast', { event: YJS_SYNC_REQUEST_EVENT }, ({ payload }) => {
         const nextPayload = payload as YjsSyncRequestPayload;
@@ -310,19 +305,34 @@ export function useSupabaseSync(
       .on('broadcast', { event: YJS_SYNC_RESPONSE_EVENT }, ({ payload }) => {
         const nextPayload = payload as YjsSyncResponsePayload;
         if (!nextPayload || nextPayload.targetSessionId !== sessionId || nextPayload.sessionId === sessionId) return;
-
         Y.applyUpdate(doc, decodeBinary(nextPayload.update), providerOriginRef.current);
-        markDirtyAndScheduleSync();
       })
+      // --- DB revision notifications (replaces 10s anti-entropy polling) ---
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'board_documents',
+          filter: `board_id=eq.${boardId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'DELETE') return;
+          const newRevision = (payload.new as { revision?: number }).revision;
+          if (typeof newRevision === 'number' && newRevision > localRevisionRef.current) {
+            void refreshFromSupabase();
+          }
+        },
+      )
       .subscribe((status, err) => {
-        if (err) console.error('Realtime broadcast error:', err);
+        if (err) console.error('Realtime error:', err);
         if (status === 'SUBSCRIBED') {
           subscribedRef.current = true;
           void (async () => {
             await refreshFromSupabase();
             requestPeerSync();
             flushPendingUpdates();
-            if (pendingSyncRevisionRef.current > persistedSyncRevisionRef.current) {
+            if (pendingDiffRef.current) {
               scheduleSyncToSupabase();
             }
           })();
@@ -334,8 +344,14 @@ export function useSupabaseSync(
         }
       });
 
+    // --- Local Yjs changes → accumulate diff + broadcast ---
     const onUpdate = (update: Uint8Array, origin: unknown) => {
       if (origin === providerOriginRef.current) return;
+
+      // Accumulate diff for DB persistence
+      pendingDiffRef.current = pendingDiffRef.current
+        ? Y.mergeUpdates([pendingDiffRef.current, update])
+        : update;
 
       markDirtyAndScheduleSync();
       sendDocumentUpdate(update);
@@ -343,11 +359,12 @@ export function useSupabaseSync(
 
     doc.on('update', onUpdate);
 
+    // --- Visibility / focus handlers ---
     const handleResume = () => {
       if (!subscribedRef.current) return;
       void refreshFromSupabase();
       requestPeerSync();
-      if (pendingSyncRevisionRef.current > persistedSyncRevisionRef.current) {
+      if (pendingDiffRef.current) {
         scheduleSyncToSupabase();
       }
     };
@@ -357,23 +374,17 @@ export function useSupabaseSync(
         handleResume();
         return;
       }
-
-      if (pendingSyncRevisionRef.current > persistedSyncRevisionRef.current) {
+      // Flush pending diffs when tab goes hidden
+      if (pendingDiffRef.current) {
         void syncToSupabase();
       }
     };
 
     const handlePageHide = () => {
-      if (pendingSyncRevisionRef.current > persistedSyncRevisionRef.current) {
+      if (pendingDiffRef.current) {
         void syncToSupabase();
       }
     };
-
-    const antiEntropyInterval = window.setInterval(() => {
-      if (!subscribedRef.current || document.visibilityState !== 'visible') return;
-      requestPeerSync();
-      void refreshFromSupabase();
-    }, ANTI_ENTROPY_INTERVAL_MS);
 
     window.addEventListener('focus', handleResume);
     window.addEventListener('pagehide', handlePageHide);
@@ -383,7 +394,6 @@ export function useSupabaseSync(
       subscribedRef.current = false;
       channelRef.current = null;
       doc.off('update', onUpdate);
-      clearInterval(antiEntropyInterval);
       window.removeEventListener('focus', handleResume);
       window.removeEventListener('pagehide', handlePageHide);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -404,7 +414,7 @@ export function useSupabaseSync(
     syncToSupabase,
   ]);
 
-  // Cleanup sync timeout
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
