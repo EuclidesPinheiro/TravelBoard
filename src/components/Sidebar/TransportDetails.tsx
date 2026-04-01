@@ -16,10 +16,12 @@ const TRANSPORT_OPTIONS: { mode: TransportMode; label: string; icon: typeof Plan
 export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, segmentId: string }) {
   const { setItinerary } = useItinerary();
   const segment = traveler.segments.find(s => s.id === segmentId) as TransportSegment;
+  const locked = traveler.locked === true;
 
   if (!segment) return null;
 
   function updateSegment(updates: Partial<TransportSegment>) {
+    if (locked) return;
     setItinerary((prev) => {
       const travelerIdx = prev.travelers.findIndex((t) => t.id === traveler.id);
       if (travelerIdx === -1) return prev;
@@ -92,14 +94,22 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
             type="text"
             value={segment.from}
             onChange={e => updateSegment({ from: e.target.value })}
-            className="w-full bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate"
+            disabled={locked}
+            className={cn(
+              "w-full bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate",
+              locked && "opacity-60 cursor-not-allowed"
+            )}
           />
           <span className="shrink-0 text-slate-500">→</span>
           <input
             type="text"
             value={segment.to}
             onChange={e => updateSegment({ to: e.target.value })}
-            className="w-full bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate"
+            disabled={locked}
+            className={cn(
+              "w-full bg-transparent border-b border-transparent hover:border-slate-700 focus:border-indigo-500 focus:outline-none truncate",
+              locked && "opacity-60 cursor-not-allowed"
+            )}
           />
         </h3>
       </div>
@@ -118,6 +128,7 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
               <button
                 key={opt.mode}
                 onClick={() => {
+                  if (locked) return;
                   if (opt.mode === 'train' && segment.mode === 'night_train') {
                     updateSegment({ mode: 'night_train' });
                   } else if (opt.mode === 'bus' && segment.mode === 'tour_bus') {
@@ -126,11 +137,13 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
                     updateSegment({ mode: opt.mode });
                   }
                 }}
+                disabled={locked}
                 className={cn(
                   "flex flex-col items-center gap-1 px-2 py-1.5 rounded-lg transition-all flex-1",
                   selected
                     ? "ring-2 shadow-sm"
-                    : "bg-slate-900 hover:bg-slate-800 text-slate-500"
+                    : "bg-slate-900 hover:bg-slate-800 text-slate-500",
+                  locked && "opacity-60 cursor-not-allowed"
                 )}
                 style={selected ? {
                   backgroundColor: `${highlightColor}15`,
@@ -151,9 +164,11 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
             <span className="text-xs text-slate-400 font-medium">Sleeper</span>
             <button
               onClick={() => updateSegment({ mode: segment.mode === 'night_train' ? 'train' : 'night_train' })}
+              disabled={locked}
               className={cn(
                 "w-8 h-4 rounded-full relative transition-colors",
-                segment.mode === 'night_train' ? "bg-indigo-500" : "bg-slate-700"
+                segment.mode === 'night_train' ? "bg-indigo-500" : "bg-slate-700",
+                locked && "opacity-60 cursor-not-allowed"
               )}
             >
               <div
@@ -170,9 +185,11 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
             <span className="text-xs text-slate-400 font-medium">Tour</span>
             <button
               onClick={() => updateSegment({ mode: segment.mode === 'tour_bus' ? 'bus' : 'tour_bus' })}
+              disabled={locked}
               className={cn(
                 "w-8 h-4 rounded-full relative transition-colors",
-                segment.mode === 'tour_bus' ? "bg-indigo-500" : "bg-slate-700"
+                segment.mode === 'tour_bus' ? "bg-indigo-500" : "bg-slate-700",
+                locked && "opacity-60 cursor-not-allowed"
               )}
             >
               <div
@@ -196,13 +213,21 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
               type="time"
               value={segment.departureTime}
               onChange={e => updateSegment({ departureTime: e.target.value })}
-              className="w-full text-base font-bold text-slate-50 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              disabled={locked}
+              className={cn(
+                "w-full text-base font-bold text-slate-50 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500",
+                locked && "opacity-60 cursor-not-allowed"
+              )}
             />
             <input
               type="date"
               value={segment.departureDate}
               onChange={e => updateSegment({ departureDate: e.target.value })}
-              className="w-full text-xs text-slate-400 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              disabled={locked}
+              className={cn(
+                "w-full text-xs text-slate-400 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500",
+                locked && "opacity-60 cursor-not-allowed"
+              )}
             />
           </div>
 
@@ -212,13 +237,21 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
               type="time"
               value={segment.arrivalTime}
               onChange={e => updateSegment({ arrivalTime: e.target.value })}
-              className="w-full text-base font-bold text-slate-50 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-right"
+              disabled={locked}
+              className={cn(
+                "w-full text-base font-bold text-slate-50 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-right",
+                locked && "opacity-60 cursor-not-allowed"
+              )}
             />
             <input
               type="date"
               value={segment.arrivalDate}
               onChange={e => updateSegment({ arrivalDate: e.target.value })}
-              className="w-full text-xs text-slate-400 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-right"
+              disabled={locked}
+              className={cn(
+                "w-full text-xs text-slate-400 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-right",
+                locked && "opacity-60 cursor-not-allowed"
+              )}
             />
           </div>
         </div>
@@ -255,7 +288,11 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
             placeholder="0.00"
             min="0"
             step="0.01"
-            className="w-full text-sm bg-slate-950 border border-slate-700 rounded-lg pl-7 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder-slate-400"
+            disabled={locked}
+            className={cn(
+              "w-full text-sm bg-slate-950 border border-slate-700 rounded-lg pl-7 pr-3 py-2 focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder-slate-400",
+              locked && "opacity-60 cursor-not-allowed"
+            )}
           />
         </div>
       </div>
@@ -267,7 +304,11 @@ export function TransportDetails({ traveler, segmentId }: { traveler: Traveler, 
           value={segment.notes ?? ''}
           onChange={e => updateSegment({ notes: e.target.value })}
           placeholder="Add notes..."
-          className="w-full text-sm text-slate-300 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 min-h-[100px] focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-500 resize-y"
+          disabled={locked}
+          className={cn(
+            "w-full text-sm text-slate-300 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 min-h-[100px] focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-500 resize-y",
+            locked && "opacity-60 cursor-not-allowed"
+          )}
         />
       </div>
     </div>
