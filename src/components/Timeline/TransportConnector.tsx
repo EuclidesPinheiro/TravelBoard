@@ -48,8 +48,9 @@ export function TransportConnector({ segment, traveler, left, width }: Transport
         data-traveler-id={traveler.id}
         data-segment-id={segment.id}
         className={cn(
-          "absolute top-1/2 -translate-y-1/2 left-0 right-0 h-4 rounded-md border flex items-center justify-center cursor-pointer transition-[box-shadow,transform,border-color] pointer-events-auto",
-          isSelected ? "z-10" : "shadow-sm hover:shadow-md hover:scale-105"
+          "absolute top-1/2 -translate-y-1/2 left-0 right-0 h-4 rounded-md border flex items-center justify-center transition-[box-shadow,transform,border-color] pointer-events-auto",
+          traveler.locked ? "cursor-default" : "cursor-pointer hover:scale-105",
+          isSelected ? "z-10" : "shadow-sm hover:shadow-md"
         )}
         style={{
           backgroundColor: isSelected ? `${color}f0` : color,
@@ -57,7 +58,6 @@ export function TransportConnector({ segment, traveler, left, width }: Transport
           boxShadow: selectionShadow,
         }}
         onClick={(e) => {
-          if (traveler.locked) return;
           // Set focused cell
           const dayIndex = differenceInDays(
             startOfDay(parseISO(segment.departureDate)),
