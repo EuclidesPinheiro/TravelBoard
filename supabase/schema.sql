@@ -77,5 +77,20 @@ create policy "Board token can delete versions"
 on itinerary_versions for delete
 using (public.has_board_access(board_id));
 
--- Enable Realtime on itinerary_versions
+-- Table: board_documents (single Yjs doc per board for efficient sync)
+create table board_documents (
+  board_id uuid primary key references boards(id) on delete cascade,
+  yjs_state text not null default '',
+  revision bigint not null default 0,
+  updated_at timestamptz default now()
+);
+
+alter table board_documents enable row level security;
+
+create policy "Board token can read documents"
+on board_documents for select
+using (public.has_board_access(board_id));
+
+-- Enable Realtime
 alter publication supabase_realtime add table itinerary_versions;
+alter publication supabase_realtime add table board_documents;

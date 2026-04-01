@@ -68,6 +68,35 @@ export async function invokePublicFunction<TResponse>(
   return parsed as TResponse;
 }
 
+export async function invokeBoardFunction<TResponse>(
+  functionName: string,
+  accessToken: string,
+  body: unknown,
+): Promise<TResponse> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const rawText = await response.text();
+  const parsed = rawText ? safeParseJson(rawText) : null;
+
+  if (!response.ok) {
+    const message =
+      (parsed && typeof parsed === 'object' && 'error' in parsed && typeof parsed.error === 'string'
+        ? parsed.error
+        : response.statusText) || 'Function invocation failed';
+    throw new EdgeFunctionError(message, response.status, parsed);
+  }
+
+  return parsed as TResponse;
+}
+
 function safeParseJson(value: string): unknown {
   try {
     return JSON.parse(value);

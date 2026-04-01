@@ -23,7 +23,8 @@ bun run lint     # tsc --noEmit (type-check only)
 
 - **Routes:** `/` landing, `/b/:boardId` board view
 - **Data model:** `Itinerary` has `Traveler[]`, each with `Segment[]` (city or transport). Attractions and checklists are keyed by city name
-- **Sync flow:** Local Yjs doc changes broadcast to peers via Supabase Realtime channel, then persist to `board_documents` table via `apply-board-update` edge function using optimistic concurrency (revision numbers)
+- **Sync flow:** Local Yjs doc changes broadcast to peers via Supabase Realtime channel, then persist incremental diffs to `board_documents` table via `apply-board-update` edge function (server-side Yjs merge with optimistic concurrency). DB reads only happen on initial load and tab-focus recovery (no polling). Only the change author persists — receivers apply broadcasts without re-writing to DB
+- **Legacy migration:** Boards created before `board_documents` are auto-migrated on first load from `itinerary_versions`. Don't write new sync code against `itinerary_versions`
 - **Transport segments** are auto-generated between consecutive city segments by `syncTravelSegments` — don't create them manually
 
 ## Rules
