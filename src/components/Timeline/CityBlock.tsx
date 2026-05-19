@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { CitySegment, Traveler, SelectionItem } from "../../types";
 import { useItinerary } from "../../store/ItineraryContext";
@@ -98,6 +98,8 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     type: DragType;
     startX: number;
     deltaX: number;
+    clientX: number;
+    clientY: number;
     group: {
       segmentIds: string[];
       elements: HTMLElement[];
@@ -105,10 +107,28 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     } | null;
   } | null>(null);
   const didDragRef = useRef(false);
-  const [, forceRender] = useState(0);
+  const [, setRenderTick] = useState(0);
+  const renderFrameRef = useRef<number | null>(null);
+  const activeDragCleanupRef = useRef<(() => void) | null>(null);
   const zoomRef = useRef(zoomLevel);
   zoomRef.current = zoomLevel;
-  const blockRef = useRef<HTMLDivElement>(null);
+
+  function scheduleDragRender() {
+    if (renderFrameRef.current !== null) return;
+    renderFrameRef.current = requestAnimationFrame(() => {
+      renderFrameRef.current = null;
+      setRenderTick((n) => n + 1);
+    });
+  }
+
+  useEffect(() => {
+    return () => {
+      if (renderFrameRef.current !== null) {
+        cancelAnimationFrame(renderFrameRef.current);
+      }
+      activeDragCleanupRef.current?.();
+    };
+  }, []);
 
   function commitDrag(type: DragType, rawDeltaX: number) {
     const zoom = zoomRef.current;
@@ -317,6 +337,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     if (locked) return;
     e.preventDefault();
     e.stopPropagation();
+    activeDragCleanupRef.current?.();
     didDragRef.current = false;
 
     // Build group info for multi-select moves
@@ -350,14 +371,23 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
       }
     }
 
-    dragRef.current = { type, startX: e.clientX, deltaX: 0, group };
-    forceRender((n) => n + 1);
+    dragRef.current = {
+      type,
+      startX: e.clientX,
+      deltaX: 0,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      group,
+    };
+    scheduleDragRender();
 
     const onMouseMove = (ev: MouseEvent) => {
       if (!dragRef.current) return;
       const deltaX = ev.clientX - dragRef.current.startX;
       if (Math.abs(deltaX) > 3) didDragRef.current = true;
       dragRef.current.deltaX = deltaX;
+      dragRef.current.clientX = ev.clientX;
+      dragRef.current.clientY = ev.clientY;
 
       // Move group siblings via direct DOM manipulation
       const g = dragRef.current.group;
@@ -374,7 +404,7 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         }
       }
 
-      forceRender((n) => n + 1);
+      scheduleDragRender();
     };
 
     const onMouseUp = () => {
@@ -400,13 +430,24 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
         }
       }
       dragRef.current = null;
-      forceRender((n) => n + 1);
+      scheduleDragRender();
+      removeDragListeners();
+    };
+
+    let listenersRemoved = false;
+    const removeDragListeners = () => {
+      if (listenersRemoved) return;
+      listenersRemoved = true;
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      if (activeDragCleanupRef.current === removeDragListeners) {
+        activeDragCleanupRef.current = null;
+      }
     };
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+    activeDragCleanupRef.current = removeDragListeners;
   }
 
   function handleClick(e: React.MouseEvent) {
@@ -520,13 +561,9 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
     }
   }
 
-  // Get tooltip position from block's bounding rect (for portal)
-  const blockRect = blockRef.current?.getBoundingClientRect();
-
   return (
     <>
       <div
-        ref={blockRef}
         data-city-block
         data-selection-type="city"
         data-traveler-id={traveler.id}
@@ -660,13 +697,13 @@ export function CityBlock({ segment, traveler, left, width }: CityBlockProps) {
       {/* Date preview tooltip — portal to body to escape overflow clipping */}
       {isDragging &&
         previewLabel &&
-        blockRect &&
+        drag &&
         createPortal(
           <div
             className="fixed bg-slate-800 text-white text-[10px] font-medium px-2 py-0.5 rounded whitespace-nowrap pointer-events-none z-[9999]"
             style={{
-              left: blockRect.left + blockRect.width / 2,
-              top: blockRect.top - 28,
+              left: drag.clientX,
+              top: Math.max(8, drag.clientY - 32),
               transform: "translateX(-50%)",
             }}
           >

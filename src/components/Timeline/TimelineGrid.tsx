@@ -251,6 +251,7 @@ export function TimelineGrid() {
   const SIDEBAR_WIDTH = 256;
   const lastPointerClientRef = useRef<{ x: number; y: number } | null>(null);
   const lastPublishedCursorRef = useRef<{ x: number; y: number } | null>(null);
+  const cursorPublishFrameRef = useRef<number | null>(null);
 
   const lastRequestedZoomRef = useRef(zoomLevel);
   useEffect(() => { lastRequestedZoomRef.current = zoomLevel; }, [zoomLevel]);
@@ -360,22 +361,34 @@ export function TimelineGrid() {
     updateCursor(nextCursor);
   }, [updateCursor]);
 
+  const scheduleCursorPublish = useCallback(() => {
+    if (cursorPublishFrameRef.current !== null) return;
+    cursorPublishFrameRef.current = requestAnimationFrame(() => {
+      cursorPublishFrameRef.current = null;
+      publishCursorFromClient(lastPointerClientRef.current);
+    });
+  }, [publishCursorFromClient]);
+
   useEffect(() => {
     const scrollEl = scrollRef.current;
     if (!scrollEl) return;
 
     const handlePointerMove = (e: PointerEvent) => {
       lastPointerClientRef.current = { x: e.clientX, y: e.clientY };
-      publishCursorFromClient(lastPointerClientRef.current);
+      scheduleCursorPublish();
     };
 
     const clearCursor = () => {
+      if (cursorPublishFrameRef.current !== null) {
+        cancelAnimationFrame(cursorPublishFrameRef.current);
+        cursorPublishFrameRef.current = null;
+      }
       lastPointerClientRef.current = null;
       publishCursorFromClient(null);
     };
 
     const handleScroll = () => {
-      publishCursorFromClient(lastPointerClientRef.current);
+      scheduleCursorPublish();
     };
 
     const handleVisibilityChange = () => {
@@ -396,7 +409,7 @@ export function TimelineGrid() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearCursor();
     };
-  }, [publishCursorFromClient]);
+  }, [publishCursorFromClient, scheduleCursorPublish]);
 
   return (
     <div className="flex-1 bg-slate-950 relative select-none" id="timeline-grid">
